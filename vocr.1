@@ -1,0 +1,31 @@
+.TH vocr 1
+.SH NAME
+vocr - a simple utility for performing optical character recognition 
+on images and PDFs
+.SH SYNOPSIS
+vocr [-i [no|tab]] [-p] [-q] [files] 
+.SH DESCRIPTION
+vocr is a simple utility for performing optical character recognition 
+(OCR) on images and PDFs. It prints any text found in the specified 
+files to stdout.  vocr relies on, and derives its names from, the Vision 
+framework, introduced in MacOSX 10.13 (High Sierra) - v - as in [V]ision
+ - and ocr, as in [o]ptical [c]haracter [r]ecognition.
+.SH OPTIONS
+.TP
+.B \-i [no|tab]
+If -i is specified with the 'no' option, vocr will not attempt to indent 
+any text that is OCR'ed.  If -i is specified with the 'tab' option, vocr
+will indent using tabs instead of spaces (by default vocr indents using 
+spaces).
+.TP
+.B \-p
+When OCR'ing a PDF, vocr inserts a page break (^L) at the end of each page.
+.TP
+.B \-q
+Enables quiet mode - vocr will not print out any informational or error 
+messages.
+.SH PLATFORMS
+vorc has been tested on MacOSX 11.x (BigSur) on M1.
+.SH HISTORY
+vocr was written by Sriranga Veeraraghavan <ranga@calalum.org>.
+
