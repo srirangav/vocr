@@ -38,8 +38,12 @@ Install:
     $ make install
 
     By default, vocr is installed in /usr/local/bin.  To install 
-    it in a different location, the alternate installation PREFIX 
-    can be supplied to make as follows:
+    it in a different location, the alternate installation prefix
+    can be supplied to configure:
+
+        $ ./configure --prefix="<prefix>"
+
+    or, alternately to make:
 
         $ make install PREFIX="<prefix>"
 
