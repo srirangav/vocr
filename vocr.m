@@ -10,6 +10,7 @@
     v. 0.1.0 (04/19/2022) - Initial version
     v. 0.2.0 (04/24/2022) - print text as soon as it has been recognized,
                             default to quiet mode
+    v. 0.3.0 (04/25/2022) - add language support
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -72,10 +73,31 @@ enum
     gPgmOptVerbose   = 'v',
 };
 
-static const char *gPgmOpts      = "hpvi:";
+enum
+{
+    gLangChineseSimplified  = 'c', /* zh-Hans */
+    gLangGerman             = 'd', /* de-DE */
+    gLangEnglish            = 'e', /* en-US */
+    gLangFrench             = 'f', /* fr-FR */
+    gLangItalian            = 'i', /* it-IT */
+    gLangPortuguese         = 'p', /* pt-BR */
+    gLangSpanish            = 's', /* es-ES */
+    gLangChineseTraditional = 't'  /* zh-Hant */
+};
+
+static const char *gPgmOpts      = "hpvi:l:";
 static const char *gPgmIndentNo  = "no";
 static const char *gPgmIndentTab = "tab";
 static BOOL       gQuiet         = YES;
+
+static const char *gPgmLangGerman             = "de";
+static const char *gPgmLangEnglish            = "en";
+static const char *gPgmLangFrench             = "fr";
+static const char *gPgmLangItalian            = "it";
+static const char *gPgmLangPortuguese         = "pt";
+static const char *gPgmLangSpanish            = "es";
+static const char *gPgmLangChineseSimplified  = "zh";
+static const char *gPgmLangChineseTraditional = "zt";
 
 /* ocr options */
 
@@ -84,6 +106,7 @@ typedef struct
     BOOL addPageBreak;
     BOOL indent;
     BOOL indentWithTabs;
+    int lang;
 } ocrOpts_t;
 
 /* prototypes */
@@ -91,6 +114,9 @@ typedef struct
 static void printUsage(void);
 static void printError(const char *format, ...);
 static void printInfo(const char *format, ...);
+#ifdef VOCR_DEBUG
+static void printSupportedLangs(void);
+#endif /* VOCR_DEBUG */
 static BOOL ocrFile(const char *file,
 #ifdef VOCR_IMG2TXT
                     NSMutableString *text,
@@ -238,19 +264,31 @@ static BOOL ocrImage(CGImageRef cgImage,
     }
 
     /*
-        make sure that we are using accurate recognition,
-        language correction, and the version 2 algorithm,
-        which supports multiple languages:
-
+        enable accurate recognition and language correction
         https://developer.apple.com/documentation/vision/vnrequesttextrecognitionlevel?language=objc
         https://developer.apple.com/documentation/vision/vnrecognizetextrequest/3166773-useslanguagecorrection?language=objc
-        https://stackoverflow.com/questions/63813709
     */
 
     [request setRecognitionLevel:
         VNRequestTextRecognitionLevelAccurate];
     [request setUsesLanguageCorrection: YES];
-    [request setRevision: VNRecognizeTextRequestRevision2];
+
+    /*
+        use the version 2 algorithm on MacOSX 11+, which supports
+        multiple languages:
+
+        https://developer.apple.com/documentation/vision/vnrecognizetextrequestrevision2?language=objc
+        https://stackoverflow.com/questions/63813709
+    */
+
+    if (@available(macos 11, *))
+    {
+        [request setRevision: VNRecognizeTextRequestRevision2];
+    }
+    else
+    {
+        [request setRevision: VNRecognizeTextRequestRevision1];
+    }
 
     if ([requestHandler performRequests: @[request]
                                   error: NULL] == NO)
@@ -675,9 +713,139 @@ static BOOL ocrFile(const char *file,
     return NO;
 }
 
+#ifdef VOCR_DEBUG
+static void printSupportedLangs(void)
+{
+    NSArray<NSString *> *langs;
+    NSUInteger i = 0, numLangs = 0;
+
+    /* fast, v1 */
+
+    langs = [VNRecognizeTextRequest
+        supportedRecognitionLanguagesForTextRecognitionLevel:
+            VNRequestTextRecognitionLevelFast
+                                                    revision:
+            VNRecognizeTextRequestRevision1
+                                                       error: nil];
+    if (langs != nil)
+    {
+        fprintf(stderr,"Fast, v1: ");
+        numLangs = [langs count];
+        if (numLangs > 0)
+        {
+            for (i = 0; i < numLangs; i++)
+            {
+                fprintf(stderr,
+                        "'%s' ",
+                        [[langs objectAtIndex: i]
+                            cStringUsingEncoding: NSUTF8StringEncoding]);
+            }
+        }
+        else
+        {
+            fprintf(stderr,"None");
+        }
+        fprintf(stderr, "\n");
+    }
+
+    /* fast, v2 */
+
+    if (@available(macos 11, *))
+    {
+        langs = [VNRecognizeTextRequest
+            supportedRecognitionLanguagesForTextRecognitionLevel:
+                VNRequestTextRecognitionLevelFast
+                                                        revision:
+                VNRecognizeTextRequestRevision2
+                                                           error: nil];
+        if (langs != nil)
+        {
+            fprintf(stderr,"Fast, v2: ");
+            numLangs = [langs count];
+            if (numLangs > 0)
+            {
+                for (i = 0; i < numLangs; i++)
+                {
+                    fprintf(stderr,
+                            "'%s' ",
+                            [[langs objectAtIndex: i]
+                                cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
+            }
+            else
+            {
+                fprintf(stderr,"None");
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+
+    /* accurate, v1 */
+
+    langs = [VNRecognizeTextRequest
+        supportedRecognitionLanguagesForTextRecognitionLevel:
+            VNRequestTextRecognitionLevelAccurate
+                                                    revision:
+            VNRecognizeTextRequestRevision1
+                                                       error: nil];
+    if (langs != nil)
+    {
+        fprintf(stderr,"Accurate, v1: ");
+        numLangs = [langs count];
+        if (numLangs > 0)
+        {
+            for (i = 0; i < numLangs; i++)
+            {
+                fprintf(stderr,
+                        "'%s' ",
+                        [[langs objectAtIndex: i]
+                            cStringUsingEncoding: NSUTF8StringEncoding]);
+            }
+        }
+        else
+        {
+            fprintf(stderr,"None");
+        }
+        fprintf(stderr, "\n");
+    }
+
+    /* accurate, v2 */
+
+    if (@available(macos 11, *))
+    {
+        langs = [VNRecognizeTextRequest
+            supportedRecognitionLanguagesForTextRecognitionLevel:
+                VNRequestTextRecognitionLevelAccurate
+                                                        revision:
+                VNRecognizeTextRequestRevision2
+                                                           error: nil];
+        if (langs != nil)
+        {
+            fprintf(stderr,"Accurate, v2: ");
+            numLangs = [langs count];
+            if (numLangs > 0)
+            {
+                for (i = 0; i < numLangs; i++)
+                {
+                    fprintf(stderr,
+                            "'%s' ",
+                            [[langs objectAtIndex: i]
+                                cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
+            }
+            else
+            {
+                fprintf(stderr,"None");
+            }
+            fprintf(stderr, "\n");
+        }
+    }
+}
+#endif /* VOCR_DEBUG */
+
 /* main */
 
-int main (int argc, char * const argv[])
+int main(int argc, char * const argv[])
 {
     int i = 0, err = 0, ch = 0;
     BOOL optHelp = NO;
@@ -694,6 +862,23 @@ int main (int argc, char * const argv[])
 @autoreleasepool
     {
 
+    /*
+        check for MacOSX 10.15 or newer, because we need
+        VNRecognizeTextRequest, which was first available
+        on MacOSX 10.15:
+
+        https://developer.apple.com/documentation/vision/vnrecognizetextrequest
+     */
+
+    if (@available(macOS 10.15, *))
+    {
+    }
+    else
+    {
+        printError("%s requires MacOSX 10.15 or newer\n", gPgmName);
+        return 1;
+    }
+
     if (argc <= 1)
     {
         printUsage();
@@ -703,6 +888,7 @@ int main (int argc, char * const argv[])
     options.addPageBreak = NO;
     options.indent = YES;
     options.indentWithTabs = NO;
+    options.lang = gLangEnglish;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
@@ -727,8 +913,64 @@ int main (int argc, char * const argv[])
                 }
                 else
                 {
-                    printError("Unknown indent option: %s\n", optarg);
+                    printError("Unsupported indent type: '%s'\n", optarg);
                     err++;
+                }
+                break;
+            case gPgmOptLang:
+                if (@available(macos 11, *))
+                {
+                    if (strcmp(optarg, gPgmLangGerman) == 0)
+                    {
+                        options.lang = gLangGerman;
+                    }
+                    else if (strcmp(optarg, gPgmLangEnglish) == 0)
+                    {
+                        options.lang = gLangEnglish;
+                    }
+                    else if (strcmp(optarg, gPgmLangFrench) == 0)
+                    {
+                        options.lang = gLangFrench;
+                    }
+                    else if (strcmp(optarg, gPgmLangItalian) == 0)
+                    {
+                        options.lang = gLangItalian;
+                    }
+                    else if (strcmp(optarg, gPgmLangPortuguese) == 0)
+                    {
+                        options.lang = gLangPortuguese;
+                    }
+                    else if (strcmp(optarg, gPgmLangSpanish) == 0)
+                    {
+                        options.lang = gLangSpanish;
+                    }
+                    else if (strcmp(optarg, gPgmLangChineseSimplified) == 0)
+                    {
+                        options.lang = gLangChineseSimplified;
+                    }
+                    else if (strcmp(optarg, gPgmLangChineseTraditional) == 0)
+                    {
+                        options.lang = gLangChineseTraditional;
+                    }
+                    else
+                    {
+                        printError("Unsupported language: '%s'\n", optarg);
+                        err++;
+                    }
+                }
+                else
+                {
+                    /* before 11.x, only english is supported */
+
+                    if (strcmp(optarg, gPgmLangEnglish) == 0)
+                    {
+                        options.lang = gLangEnglish;
+                    }
+                    else
+                    {
+                        printError("Unsupported language: '%s'\n", optarg);
+                        err++;
+                    }
                 }
                 break;
             case gPgmOptVerbose:
@@ -754,6 +996,9 @@ int main (int argc, char * const argv[])
 
     if (optHelp)
     {
+#ifdef VOCR_DEBUG
+        printSupportedLangs();
+#endif /* VOCR_DEBUG */
         return 0;
     }
 

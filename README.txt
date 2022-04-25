@@ -5,18 +5,17 @@ vocr v0.2.0
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
 vocr is a MacOSX command line program that can perform optical
-character recognition (OCR) on images and PDF files.  It outputs 
-any text found in the input files to stdout.  vocr relies on 
-Apple's Vision framework to perform OCR (hence its name v - for
-[V]ision - and ocr - for [o]ptical [c]haracter [r]ecognition).
+character recognition (OCR) on images and PDF files.  It outputs
+any text found in the input files to stdout.  vocr relies on,
+and derives its names from, the Vision framework (v for [V]ision).
 
 Usage:
 
-    vocr [-i [no|tab]] [-p] [-v] [files]
+    vocr [-i [no|tab]] [-p] [-v] [-l [lang]] [files]
 
-    If -i is specified with the 'no' option, vocr will not attempt 
+    If -i is specified with the 'no' option, vocr will not attempt
     to indent any text that is OCR'ed.  If -i is specified with the
-    'tab' option, vocr will indent using tabs instead of spaces (by 
+    'tab' option, vocr will indent using tabs instead of spaces (by
     default vocr indents using spaces).
 
     If -p is specified, when OCR'ing a PDF, a page break (^L) will
@@ -25,10 +24,23 @@ Usage:
     If -v is specified, vocr runs in [v]erbose mode and outputs
     errors and informational messages.
 
+    If -l is specified, on MacOSX 11.x (BigSur) and newer, vocr
+    will ask the Vision framework to recognize the text in the
+    specified language.  The supported language options are:
+
+        'de' - German
+        'en' - English
+        'fr' - French
+        'it' - Italian
+        'pt' - Portuguese
+        'es' - Spanish
+        'zh' - Simplified Chinese
+        'zt' - Traditional Chinese
+
 Build:
 
     $ ./configure
-    $ make 
+    $ make
 
 Install:
 
@@ -57,20 +69,23 @@ Install:
 
 Dependencies:
 
-   vocr relies on Apple's Vision framework, introduced in MacOSX
-   10.13 (High Sierra):
+   vocr relies on VNRecognizeTextRequest in Apple's Vision
+   framework, which is available on MacOSX 10.15 (Catalina)
+   and newer:
 
-   https://developer.apple.com/documentation/vision?language=objc
+   https://developer.apple.com/documentation/vision/vnrecognizetextrequest
 
 History:
 
     v. 0.2.0 - print text as soon as it has been recognized,
-               default to quiet mode
+               default to quiet mode, add support for languages
+               other than English
     v. 0.1.0 - initial release
 
 Platforms:
 
-    vocr has been tested on MacOSX 11 (BigSur) on M1.
+    vocr has been tested on MacOSX 11 (BigSur) on M1.  It should work
+    on MacOSX 10.15+ (Catalina) or newer.
 
 License:
 
