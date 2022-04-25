@@ -55,17 +55,19 @@ static const NSUInteger
 
 /*
     command line options:
+        -f        - use the [f]ast recognition algorithm
         -h        - print usage / [h]elp
         -i [mode] - set the [i]ndent mode:
-                    'no'   disables indenting
-                    'tab'  indents with tabs (default is to use 4 spaces)
-        -l - specify the [l]anguage that the input is in (TODO)
+                    'no'  - disables indenting
+                    'tab' - indents with tabs (default is to use 4 spaces)
+        -l - specify the [l]anguage to use for recognition
         -p - add a page break / [l]ine feed between pages
         -v - be [v]erbose
 */
 
 enum
 {
+    gPgmOptFast      = 'f',
     gPgmOptHelp      = 'h',
     gPgmOptIndent    = 'i',
     gPgmOptLang      = 'l',
@@ -75,35 +77,34 @@ enum
 
 enum
 {
-    gLangChineseSimplified  = 'c', /* zh-Hans */
-    gLangGerman             = 'd', /* de-DE */
-    gLangEnglish            = 'e', /* en-US */
-    gLangFrench             = 'f', /* fr-FR */
-    gLangItalian            = 'i', /* it-IT */
-    gLangPortuguese         = 'p', /* pt-BR */
-    gLangSpanish            = 's', /* es-ES */
-    gLangChineseTraditional = 't'  /* zh-Hant */
+    gLangGerman     = 'd', /* de-DE */
+    gLangEnglish    = 'e', /* en-US */
+    gLangFrench     = 'f', /* fr-FR */
+    gLangItalian    = 'i', /* it-IT */
+    gLangPortuguese = 'p', /* pt-BR */
+    gLangSpanish    = 's', /* es-ES */
+    gLangChinese    = 'z', /* zh-Hans and zh-Hant */
 };
 
-static const char *gPgmOpts      = "hpvi:l:";
+static const char *gPgmOpts      = "fhpvi:l:";
 static const char *gPgmIndentNo  = "no";
 static const char *gPgmIndentTab = "tab";
 static BOOL       gQuiet         = YES;
 
-static const char *gPgmLangGerman             = "de";
-static const char *gPgmLangEnglish            = "en";
-static const char *gPgmLangFrench             = "fr";
-static const char *gPgmLangItalian            = "it";
-static const char *gPgmLangPortuguese         = "pt";
-static const char *gPgmLangSpanish            = "es";
-static const char *gPgmLangChineseSimplified  = "zh";
-static const char *gPgmLangChineseTraditional = "zt";
+static const char *gPgmLangGerman     = "de";
+static const char *gPgmLangEnglish    = "en";
+static const char *gPgmLangFrench     = "fr";
+static const char *gPgmLangItalian    = "it";
+static const char *gPgmLangPortuguese = "pt";
+static const char *gPgmLangSpanish    = "es";
+static const char *gPgmLangChinese    = "zh";
 
 /* ocr options */
 
 typedef struct
 {
     BOOL addPageBreak;
+    BOOL fast;
     BOOL indent;
     BOOL indentWithTabs;
     int lang;
@@ -135,14 +136,16 @@ static BOOL ocrImage(CGImageRef cgImage,
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] | [-%c] [-%c] [-%c [%s|%s]] [files]\n",
+            "Usage: %s [-%c] | [-%c] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [files]\n",
             gPgmName,
             gPgmOptHelp,
             gPgmOptVerbose,
+            gPgmOptFast,
             gPgmOptPageBreak,
             gPgmOptIndent,
             gPgmIndentNo,
-            gPgmIndentTab);
+            gPgmIndentTab,
+            gPgmOptLang);
 }
 
 /* printError - print an error message */
@@ -339,8 +342,9 @@ static BOOL ocrImage(CGImageRef cgImage,
     unsigned int indentLevel = 0, k = 0;
     double prevStart = 0.0, prevEnd = 0.0;
     double curStart = 0.0, curEnd = 0.0;
-    BOOL indent = YES;
+    BOOL indent = YES, fast = NO, langCorrect = YES;
     NSString *indentStr = gIndentStr;
+    NSArray<NSString *> *langs = nil;
 
 #ifdef VOCR_IMG2TXT
     if (text == nil)
@@ -352,10 +356,62 @@ static BOOL ocrImage(CGImageRef cgImage,
 
     if (opts != NULL)
     {
+
+        /* is fast mode requested? */
+
+        fast = opts->fast;
+
+        /* desired indent */
+
         indent = opts->indent;
         if (opts->indentWithTabs)
         {
             indentStr = @"\t";
+        }
+
+        /*
+            on BigSur (11.x) and newer, try to set the
+            recognition language
+        */
+
+        if (@available(macos 11, *))
+        {
+            switch(opts->lang)
+            {
+                case gLangGerman:
+                    langs = [NSArray arrayWithObjects: @"de-DE", nil];
+                    break;
+                case gLangEnglish:
+                    break;
+                case gLangFrench:
+                    langs = [NSArray arrayWithObjects: @"fr-FR", nil];
+                    break;
+                case gLangItalian:
+                    langs = [NSArray arrayWithObjects: @"it-IT", nil];
+                    break;
+                case gLangPortuguese:
+                    langs = [NSArray arrayWithObjects: @"pt-BR", nil];
+                    break;
+                case gLangSpanish:
+                    langs = [NSArray arrayWithObjects: @"es-ES", nil];
+                    break;
+                case gLangChinese:
+                    langs = [NSArray arrayWithObjects: @"zh-Hans",
+                                                       @"zh-Hant",
+                                                       @"en-US",
+                                                       nil];
+
+                    /*
+                        disable language correction for Chinese, see:
+                        https://developer.apple.com/documentation/vision/recognizing_text_in_images
+                    */
+
+                    langCorrect = NO;
+                    break;
+                default:
+                    langs = nil;
+                    break;
+            }
         }
     }
 
@@ -402,18 +458,28 @@ static BOOL ocrImage(CGImageRef cgImage,
     }
 
     /*
-        enable accurate recognition and language correction
+        enable fast/accurate recognition and language correction
         https://developer.apple.com/documentation/vision/vnrequesttextrecognitionlevel?language=objc
         https://developer.apple.com/documentation/vision/vnrecognizetextrequest/3166773-useslanguagecorrection?language=objc
     */
 
-    [request setRecognitionLevel:
-        VNRequestTextRecognitionLevelAccurate];
-    [request setUsesLanguageCorrection: YES];
+    if (fast)
+    {
+        [request setRecognitionLevel:
+            VNRequestTextRecognitionLevelFast];
+    }
+    else
+    {
+        [request setRecognitionLevel:
+            VNRequestTextRecognitionLevelAccurate];
+    }
+
+    [request setUsesLanguageCorrection: langCorrect];
 
     /*
         use the version 2 algorithm on MacOSX 11+, which supports
-        multiple languages:
+        multiple languages, and, if an alternate language is requested
+        set that as well:
 
         https://developer.apple.com/documentation/vision/vnrecognizetextrequestrevision2?language=objc
         https://stackoverflow.com/questions/63813709
@@ -422,6 +488,10 @@ static BOOL ocrImage(CGImageRef cgImage,
     if (@available(macos 11, *))
     {
         [request setRevision: VNRecognizeTextRequestRevision2];
+        if (langs != nil)
+        {
+            [request setRecognitionLanguages: langs];
+        }
     }
     else
     {
@@ -893,6 +963,7 @@ int main(int argc, char * const argv[])
         return 1;
     }
 
+    options.fast = NO;
     options.addPageBreak = NO;
     options.indent = YES;
     options.indentWithTabs = NO;
@@ -904,6 +975,9 @@ int main(int argc, char * const argv[])
         {
             case gPgmOptHelp:
                 optHelp = YES;
+                break;
+            case gPgmOptFast:
+                options.fast = YES;
                 break;
             case gPgmOptPageBreak:
                 options.addPageBreak = YES;
@@ -952,13 +1026,9 @@ int main(int argc, char * const argv[])
                     {
                         options.lang = gLangSpanish;
                     }
-                    else if (strcmp(optarg, gPgmLangChineseSimplified) == 0)
+                    else if (strcmp(optarg, gPgmLangChinese) == 0)
                     {
-                        options.lang = gLangChineseSimplified;
-                    }
-                    else if (strcmp(optarg, gPgmLangChineseTraditional) == 0)
-                    {
-                        options.lang = gLangChineseTraditional;
+                        options.lang = gLangChinese;
                     }
                     else
                     {

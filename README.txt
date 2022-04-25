@@ -11,18 +11,22 @@ and derives its names from, the Vision framework (v for [V]ision).
 
 Usage:
 
-    vocr [-i [no|tab]] [-p] [-v] [-l [lang]] [files]
+    vocr [-v] [-f] [-p] [-i [no|tab]] [-l [lang]] [files]
+
+    If -v is specified, vocr runs in [v]erbose mode and outputs
+    errors and informational messages.
+
+    If -f is specified, vocr uses the fast algorithm.  This may be
+    useful when recognizing text in non-English languages, such as
+    German.
+
+    If -p is specified, when OCR'ing a PDF, a page break (^L) will
+    be inserted at the end of each page.
 
     If -i is specified with the 'no' option, vocr will not attempt
     to indent any text that is OCR'ed.  If -i is specified with the
     'tab' option, vocr will indent using tabs instead of spaces (by
     default vocr indents using spaces).
-
-    If -p is specified, when OCR'ing a PDF, a page break (^L) will
-    be inserted at the end of each page.
-
-    If -v is specified, vocr runs in [v]erbose mode and outputs
-    errors and informational messages.
 
     If -l is specified, on MacOSX 11.x (BigSur) and newer, vocr
     will ask the Vision framework to recognize the text in the
@@ -34,8 +38,7 @@ Usage:
         'it' - Italian
         'pt' - Portuguese
         'es' - Spanish
-        'zh' - Simplified Chinese
-        'zt' - Traditional Chinese
+        'zh' - Chinese
 
 Build:
 
