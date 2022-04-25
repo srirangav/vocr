@@ -1,7 +1,7 @@
 README
 ------
 
-vocr v0.1.0
+vocr v0.2.0
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
 vocr is a MacOSX command line program that can perform optical
@@ -12,19 +12,18 @@ Apple's Vision framework to perform OCR (hence its name v - for
 
 Usage:
 
-    vocr [-i [no|tab]] [-p] [-q] [files] 
+    vocr [-i [no|tab]] [-p] [-v] [files]
 
     If -i is specified with the 'no' option, vocr will not attempt 
     to indent any text that is OCR'ed.  If -i is specified with the
     'tab' option, vocr will indent using tabs instead of spaces (by 
     default vocr indents using spaces).
 
-    If -p is specified, when OCR'ing a PDF, a page break (^L) will 
+    If -p is specified, when OCR'ing a PDF, a page break (^L) will
     be inserted at the end of each page.
 
-    If -q is specified, vocr runs in [q]uiet mode and only outputs 
-    text found in the input files (all errors and informational 
-    message are silenced).
+    If -v is specified, vocr runs in [v]erbose mode and outputs
+    errors and informational messages.
 
 Build:
 
@@ -37,7 +36,7 @@ Install:
     $ make
     $ make install
 
-    By default, vocr is installed in /usr/local/bin.  To install 
+    By default, vocr is installed in /usr/local/bin.  To install
     it in a different location, the alternate installation prefix
     can be supplied to configure:
 
@@ -65,7 +64,9 @@ Dependencies:
 
 History:
 
-    v0.1.0 - initial release
+    v. 0.2.0 - print text as soon as it has been recognized,
+               default to quiet mode
+    v. 0.1.0 - initial release
 
 Platforms:
 

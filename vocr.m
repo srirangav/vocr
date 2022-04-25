@@ -1,4 +1,4 @@
-/* 
+/*
     vocr.m - perform optical character recognition on an image or a PDF
              using Apple's Vision framework
 
@@ -8,26 +8,28 @@
     History:
 
     v. 0.1.0 (04/19/2022) - Initial version
+    v. 0.2.0 (04/24/2022) - print text as soon as it has been recognized,
+                            default to quiet mode
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
     Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the 
-    "Software"), to deal in the Software without restriction, including 
-    without limitation the rights to use, copy, modify, merge, publish, 
-    distribute, sublicense, and/or sell copies of the Software, and to 
-    permit persons to whom the Software is furnished to do so, subject to 
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
     the following conditions:
 
     The above copyright notice and this permission notice shall be included
     in all copies or substantial portions of the Software.
 
     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
     SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
@@ -45,18 +47,19 @@ static NSString   *gUTIPDF    = @"com.adobe.pdf";
 static NSString   *gUTIIMG    = @"public.image";
 static NSString   *gIndentStr = @"    ";
 static const char *gPgmName   = "vocr";
-static const NSUInteger 
+#ifdef VOCR_IMG2TXT
+static const NSUInteger
                   gBufSize    = 1024;
+#endif /* VOCR_IMG2TXT */
 
-/* 
+/*
     command line options:
         -h        - print usage / [h]elp
-        -i [mode] - set the [i]ndent mode: 
+        -i [mode] - set the [i]ndent mode:
                     'no'   disables indenting
                     'tab'  indents with tabs (default is to use 4 spaces)
         -l - specify the [l]anguage that the input is in (TODO)
         -p - add a page break / [l]ine feed between pages
-        -q - be [q]uiet, don't print any errors or warnings
         -v - be [v]erbose
 */
 
@@ -66,13 +69,13 @@ enum
     gPgmOptIndent    = 'i',
     gPgmOptLang      = 'l',
     gPgmOptPageBreak = 'p',
-    gPgmOptQuiet     = 'q',
+    gPgmOptVerbose   = 'v',
 };
 
-static const char *gPgmOpts      = "hpqi:l:";
+static const char *gPgmOpts      = "hpvi:";
 static const char *gPgmIndentNo  = "no";
 static const char *gPgmIndentTab = "tab";
-static BOOL       gQuiet         = NO;
+static BOOL       gQuiet         = YES;
 
 /* ocr options */
 
@@ -88,11 +91,15 @@ typedef struct
 static void printUsage(void);
 static void printError(const char *format, ...);
 static void printInfo(const char *format, ...);
-static BOOL ocrFile(const char *file, 
+static BOOL ocrFile(const char *file,
+#ifdef VOCR_IMG2TXT
                     NSMutableString *text,
+#endif /* VOCR_IMG2TXT */
                     ocrOpts_t *opts);
-static BOOL ocrImage(CGImageRef cgImage, 
+static BOOL ocrImage(CGImageRef cgImage,
+#ifdef VOCR_IMG2TXT
                      NSMutableString *text,
+#endif /* VOCR_IMG2TXT */
                      ocrOpts_t *opts);
 
 /* private functions */
@@ -101,11 +108,11 @@ static BOOL ocrImage(CGImageRef cgImage,
 
 static void printUsage(void)
 {
-    fprintf(stderr, 
+    fprintf(stderr,
             "Usage: %s [-%c] | [-%c] [-%c] [-%c [%s|%s]] [files]\n",
             gPgmName,
             gPgmOptHelp,
-            gPgmOptQuiet,
+            gPgmOptVerbose,
             gPgmOptPageBreak,
             gPgmOptIndent,
             gPgmIndentNo,
@@ -148,8 +155,10 @@ static void printInfo(const char *format, ...)
 
 /* ocrImage - try to ocr the specified image */
 
-static BOOL ocrImage(CGImageRef cgImage, 
+static BOOL ocrImage(CGImageRef cgImage,
+#ifdef VOCR_IMG2TXT
                      NSMutableString *text,
+#endif /* VOCR_IMG2TXT */
                      ocrOpts_t *opts)
 {
     NSArray *results;
@@ -159,20 +168,24 @@ static BOOL ocrImage(CGImageRef cgImage,
     VNRecognizedTextObservation *rawText = nil;
     NSArray<VNRecognizedText *> *recognizedText;
     NSString *tmp1 = nil, *tmp2 = nil;
+#ifdef VOCR_IMG2TXT
     NSMutableString *ocrText = nil;
-    NSMutableArray<VNRecognizedTextObservation *> *textPieces; 
+#endif /* VOCR_IMG2TXT */
+    NSMutableArray<VNRecognizedTextObservation *> *textPieces;
     unsigned int indentLevel = 0, k = 0;
     double prevStart = 0.0, prevEnd = 0.0;
     double curStart = 0.0, curEnd = 0.0;
     BOOL indent = YES;
     NSString *indentStr = gIndentStr;
-    
+
+#ifdef VOCR_IMG2TXT
     if (text == nil)
     {
         printError("Text buffer is NULL!\n");
         return NO;
     }
-    
+#endif /* VOCR_IMG2TXT */
+
     if (opts != NULL)
     {
         indent = opts->indent;
@@ -182,13 +195,14 @@ static BOOL ocrImage(CGImageRef cgImage,
         }
     }
 
-
+#ifdef VOCR_IMG2TXT
     ocrText = [[NSMutableString alloc] initWithCapacity: gBufSize];
     if (ocrText == nil)
     {
         printError("Cannot allocate mutable string.\n");
         return NO;
     }
+#endif /* VOCR_IMG2TXT */
 
     textPieces = [NSMutableArray array];
     if (textPieces == nil)
@@ -197,7 +211,7 @@ static BOOL ocrImage(CGImageRef cgImage,
         return NO;
     }
 
-    /* 
+    /*
         create a OCR request, based on:
 
         https://developer.apple.com/documentation/vision/recognizing_text_in_images?language=objc#overview
@@ -207,7 +221,7 @@ static BOOL ocrImage(CGImageRef cgImage,
         https://chris-mash.medium.com/ios-13-optical-character-recognition-d1bb8b710db1
     */
 
-    requestHandler = 
+    requestHandler =
         [[VNImageRequestHandler alloc] initWithCGImage: cgImage
                                                options: @{}];
     if (requestHandler == nil)
@@ -223,22 +237,22 @@ static BOOL ocrImage(CGImageRef cgImage,
         return NO;
     }
 
-    /* 
-        make sure that we are using accurate recognition, 
-        language correction, and the version 2 algorithm, 
+    /*
+        make sure that we are using accurate recognition,
+        language correction, and the version 2 algorithm,
         which supports multiple languages:
-        
+
         https://developer.apple.com/documentation/vision/vnrequesttextrecognitionlevel?language=objc
         https://developer.apple.com/documentation/vision/vnrecognizetextrequest/3166773-useslanguagecorrection?language=objc
         https://stackoverflow.com/questions/63813709
     */
 
-    [request setRecognitionLevel: 
+    [request setRecognitionLevel:
         VNRequestTextRecognitionLevelAccurate];
     [request setUsesLanguageCorrection: YES];
     [request setRevision: VNRecognizeTextRequestRevision2];
-    
-    if ([requestHandler performRequests: @[request] 
+
+    if ([requestHandler performRequests: @[request]
                                   error: NULL] == NO)
     {
         printError("OCR failed.\n");
@@ -267,12 +281,12 @@ static BOOL ocrImage(CGImageRef cgImage,
         /* skip any result that isn't a VNRecognizedTextObservation */
 
         if (results[j] == nil ||
-            ![results[j] isKindOfClass: 
+            ![results[j] isKindOfClass:
               [VNRecognizedTextObservation class]])
         {
             continue;
         }
-    
+
         rawText = (VNRecognizedTextObservation *)results[j];
         recognizedText = [rawText topCandidates:1];
         if (recognizedText == nil)
@@ -283,12 +297,12 @@ static BOOL ocrImage(CGImageRef cgImage,
         /* get the top recognition candidate */
 
         tmp1 = [[recognizedText firstObject] string];
-        if (tmp1 == nil)    
+        if (tmp1 == nil)
         {
             continue;
         }
 
-        /* 
+        /*
             eliminate any leading or trailing whitespace:
             https://stackoverflow.com/questions/5689288/
         */
@@ -300,56 +314,74 @@ static BOOL ocrImage(CGImageRef cgImage,
             continue;
         }
 
-        /* 
+        /*
            use the botton X position as a proxy for the starting
-           and ending position of the current line 
+           and ending position of the current line
         */
 
         curStart = round(10.0 * rawText.bottomLeft.x);
         curEnd = round(10.0 * rawText.bottomRight.x);
 
         /* first line */
-        
+
         if (j == 0)
         {
             prevStart = curStart;
             prevEnd = curEnd;
+#ifdef VOCR_IMG2TXT
             [ocrText appendString: tmp2];
+#else
+            fprintf(stdout,
+                    "%s",
+                    [tmp2 cStringUsingEncoding: NSUTF8StringEncoding]);
+#endif /* VOCR_IMG2TXT */
             continue;
         }
 
-        /* 
+        /*
             if the starting position of the current line is greater
             than that of the previous line and this line ends before
-            the prior line, this line is probably not part of the 
-            same paragraph as the prior line, so add a new line 
+            the prior line, this line is probably not part of the
+            same paragraph as the prior line, so add a new line
         */
 
         if (curStart > prevStart && curEnd < prevEnd)
         {
+#ifdef VOCR_IMG2TXT
             [ocrText appendString: @"\n"];
+#else
+            fprintf(stdout, "\n");
+#endif /* VOCR_IMG2TXT */
         }
 
-        /* 
+        /*
             if the starting position of the current line is greater than
-            that of the previous line, add a newline and increase the 
+            that of the previous line, add a newline and increase the
             the indent level
-           
+
             if the starting position of the current line is less than of
-            the previous line, add a new line and reduce the indent level 
+            the previous line, add a new line and reduce the indent level
         */
 
         if (curStart > prevStart)
         {
             indentLevel++;
+#ifdef VOCR_IMG2TXT
             [ocrText appendString: @"\n"];
-        } 
+#else
+            fprintf(stdout, "\n");
+#endif /* VOCR_IMG2TXT */
+        }
         else if (curStart < prevStart)
         {
-            if (indentLevel > 1) 
+            if (indentLevel > 1)
             {
                 indentLevel--;
+#ifdef VOCR_IMG2TXT
                 [ocrText appendString: @"\n"];
+#else
+                fprintf(stdout, "\n");
+#endif /* VOCR_IMG2TXT */
             }
         }
 
@@ -359,7 +391,13 @@ static BOOL ocrImage(CGImageRef cgImage,
             {
                 for (k = 0; k < indentLevel; k++)
                 {
+#ifdef VOCR_IMG2TXT
                     [ocrText appendString: indentStr];
+#else
+                    fprintf(stdout,
+                            "%s",
+                            [indentStr cStringUsingEncoding: NSUTF8StringEncoding]);
+#endif /* VOCR_IMG2TXT */
                 }
             }
             prevStart = curStart;
@@ -367,29 +405,43 @@ static BOOL ocrImage(CGImageRef cgImage,
 
         /* add the current line to the OCR'ed text */
 
+#ifdef VOCR_IMG2TXT
         [ocrText appendFormat: @"%@ ", tmp2];
+#else
+        fprintf(stdout,
+                "%s",
+                [tmp2 cStringUsingEncoding: NSUTF8StringEncoding]);
+#endif /* VOCR_IMG2TXT */
 
-        /* 
+        /*
             if this line ends before the end of the prior line,
-            add a new line 
+            add a new line
         */
 
         if (curEnd < prevEnd)
         {
+#ifdef VOCR_IMG2TXT
             [ocrText appendString: @"\n"];
+#else
+            fprintf(stdout, "\n");
+#endif /* VOCR_IMG2TXT */
         }
 
         prevEnd = curEnd;
     }
 
+#ifdef VOCR_IMG2TXT
     [text setString: ocrText];
+#endif /* VOCR_IMG2TXT */
     return YES;
 }
 
 /* ocrFile - try to ocr the specified file */
 
-static BOOL ocrFile(const char *file, 
+static BOOL ocrFile(const char *file,
+#ifdef VOCR_IMG2TXT
                     NSMutableString *text,
+#endif /* VOCR_IMG2TXT */
                     ocrOpts_t *opts)
 {
     NSFileManager *fm = nil;
@@ -404,13 +456,23 @@ static BOOL ocrFile(const char *file,
     NSData *pdfData = nil;
     NSPDFImageRep *pdfImageRep = nil;
     NSInteger pdfPages = 0, i = 0;
+#ifdef VOCR_IMG2TXT
     NSMutableString *pdfText = nil;
-    
+#endif /* VOCR_IMG2TXT */
+
     if (file == NULL || file[0] == '\0')
     {
         printError("Filename is NULL!\n");
         return NO;
     }
+
+#ifdef VOCR_IMG2TXT
+    if (text == nil)
+    {
+        printError("Text buffer is NULL!\n");
+        return NO;
+    }
+#endif /* VOCR_IMG2TXT */
 
     fm = [NSFileManager defaultManager];
     if (fm == nil)
@@ -426,7 +488,7 @@ static BOOL ocrFile(const char *file,
         return NO;
     }
 
-    path = [fm stringWithFileSystemRepresentation: file 
+    path = [fm stringWithFileSystemRepresentation: file
                                            length: strlen(file)];
     if (path == nil)
     {
@@ -441,14 +503,14 @@ static BOOL ocrFile(const char *file,
         return NO;
     }
 
-    /* 
+    /*
         determine if the file is of a type we support, based on:
 
         https://stackoverflow.com/questions/12503376
     */
-    
-    if (![fURL getResourceValue: &type 
-                         forKey: NSURLTypeIdentifierKey 
+
+    if (![fURL getResourceValue: &type
+                         forKey: NSURLTypeIdentifierKey
                           error: &error])
     {
         printError("Cannot determine file type for '%s'.\n", file);
@@ -457,24 +519,26 @@ static BOOL ocrFile(const char *file,
 
     /* ocr a PDF */
 
-    if ([workspace type: type conformsToType: gUTIPDF]) 
+    if ([workspace type: type conformsToType: gUTIPDF])
     {
 
+#ifdef VOCR_IMG2TXT
         pdfText = [[NSMutableString alloc] initWithCapacity: gBufSize];
         if (pdfText == nil)
         {
             printError("Cannot allocate buffer for PDF text.\n");
             return NO;
         }
+#endif /* VOCR_IMG2TXT */
 
-        /* 
+        /*
             convert each page of a PDF to an image and then OCR it,
             based on:
             https://stackoverflow.com/questions/23643961
         */
 
         /* get the PDF data for the file */
-        
+
         pdfData = [NSData dataWithContentsOfURL: fURL];
         if (pdfData == nil)
         {
@@ -487,7 +551,7 @@ static BOOL ocrFile(const char *file,
         pdfImageRep = [NSPDFImageRep imageRepWithData: pdfData];
         if (pdfData == nil)
         {
-            printError("Cannot convert PDF to image: '%s'.\n", 
+            printError("Cannot convert PDF to image: '%s'.\n",
                        file);
             return NO;
         }
@@ -509,18 +573,18 @@ static BOOL ocrFile(const char *file,
 
             /* create an image for the current page */
 
-            /* 
+            /*
                 TODO, get the orientation:
                 https://stackoverflow.com/questions/6321772
 
                 TODO: create a stacked, searchable PDF:
                 https://teabyte.dev/blog/2021-03-29-from-uiimage-to-searchable-pdf-part-3
             */
-            
-            image = 
-                [NSImage imageWithSize: pdfImageRep.size 
-                               flipped: NO 
-                        drawingHandler: ^BOOL(NSRect dstRect) 
+
+            image =
+                [NSImage imageWithSize: pdfImageRep.size
+                               flipped: NO
+                        drawingHandler: ^BOOL(NSRect dstRect)
                         {
                             [pdfImageRep drawInRect: dstRect];
                             return YES;
@@ -532,39 +596,49 @@ static BOOL ocrFile(const char *file,
                 continue;
             }
 
-            /* 
-                convert the NSImage we have to a CGImage for 
+            /*
+                convert the NSImage we have to a CGImage for
                 VisionRequestHandler:
-            
+
                 https://stackoverflow.com/questions/2548059/
             */
 
-            imageRect = 
+            imageRect =
                 NSMakeRect(0, 0, image.size.width, image.size.height);
-            cgImage = [image CGImageForProposedRect: &imageRect 
-                                            context: NULL 
+            cgImage = [image CGImageForProposedRect: &imageRect
+                                            context: NULL
                                               hints: nil];
 
+#ifdef VOCR_IMG2TXT
             if (ocrImage(cgImage, pdfText, opts) != YES)
+#else
+            if (ocrImage(cgImage, opts) != YES)
+#endif /* VOCR_IMG2TXT */
             {
                 continue;
             }
 
             printInfo("OCR'ed p. %ld of '%s'.\n", i+1, file);
 
+#ifdef VOCR_IMG2TXT
             [text appendFormat: @"%@\n", pdfText];
+#endif /* VOCR_IMG2TXT */
 
             if (opts != NULL && opts->addPageBreak)
             {
+#ifdef VOCR_IMG2TXT
                 [text appendFormat: @"\f"];
+#else
+                fprintf(stdout, "\f");
+#endif /* VOCR_IMG2TXT */
             }
         }
 
         return YES;
-    } 
+    }
 
     /* ocr an image */
-    
+
     if ([workspace type: type conformsToType: gUTIIMG])
     {
         image = [[NSImage alloc] initWithContentsOfURL: fURL];
@@ -574,20 +648,24 @@ static BOOL ocrFile(const char *file,
             return NO;
         }
 
-        /* 
-            convert the NSImage we have to a CGImage for 
+        /*
+            convert the NSImage we have to a CGImage for
             VisionRequestHandler:
-            
+
             https://stackoverflow.com/questions/2548059/
         */
-        
-        imageRect = 
+
+        imageRect =
             NSMakeRect(0, 0, image.size.width, image.size.height);
-        cgImage = [image CGImageForProposedRect: &imageRect 
-                                        context: NULL 
+        cgImage = [image CGImageForProposedRect: &imageRect
+                                        context: NULL
                                           hints: nil];
 
+#ifdef VOCR_IMG2TXT
         return ocrImage(cgImage, text, opts);
+#else
+        return ocrImage(cgImage, opts);
+#endif /* VOCR_IMG2TXT */
     }
 
     /* unsupported file type */
@@ -603,15 +681,17 @@ int main (int argc, char * const argv[])
 {
     int i = 0, err = 0, ch = 0;
     BOOL optHelp = NO;
+#ifdef VOCR_IMG2TXT
     NSMutableString *text = nil;
+#endif /* VOCR_IMG2TXT */
     ocrOpts_t options;
 
-    /* 
+    /*
         create an autorelease pool:
         https://developer.apple.com/documentation/foundation/nsautoreleasepool
     */
 
-@autoreleasepool 
+@autoreleasepool
     {
 
     if (argc <= 1)
@@ -624,7 +704,7 @@ int main (int argc, char * const argv[])
     options.indent = YES;
     options.indentWithTabs = NO;
 
-    while ((ch = getopt(argc, argv, gPgmOpts)) != -1) 
+    while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
         switch(ch)
         {
@@ -635,7 +715,7 @@ int main (int argc, char * const argv[])
                 options.addPageBreak = YES;
                 break;
             case gPgmOptIndent:
-                if (strcmp(optarg, gPgmIndentNo) == 0) 
+                if (strcmp(optarg, gPgmIndentNo) == 0)
                 {
                     options.indent = NO;
                     options.indentWithTabs = NO;
@@ -651,8 +731,8 @@ int main (int argc, char * const argv[])
                     err++;
                 }
                 break;
-            case gPgmOptQuiet:
-                gQuiet = YES;
+            case gPgmOptVerbose:
+                gQuiet = NO;
                 break;
             default:
                 printError("Unknown option: '%c'\n", ch);
@@ -687,12 +767,14 @@ int main (int argc, char * const argv[])
         return 1;
     }
 
+#ifdef VOCR_IMG2TXT
     text = [[NSMutableString alloc] initWithCapacity: gBufSize];
     if (text == nil)
     {
         printError("Cannot allocate buffer for text.\n");
         return 1;
     }
+#endif /* VOCR_IMG2TXT */
 
     for (i = 0; i < argc; i++)
     {
@@ -703,16 +785,22 @@ int main (int argc, char * const argv[])
             continue;
         }
 
+#ifdef VOCR_IMG2TXT
         if (ocrFile(argv[i], text, &options) != YES)
+#else
+        if (ocrFile(argv[i], &options) != YES)
+#endif /* VOCR_IMG2TXT */
         {
             err++;
             printError("Could not OCR '%s'.\n", argv[i]);
             continue;
         }
 
-        fprintf(stdout, 
-                "%s\n", 
+#ifdef VOCR_IMG2TXT
+        fprintf(stdout,
+                "%s\n",
                 [text cStringUsingEncoding: NSUTF8StringEncoding]);
+#endif /* VOCR_IMG2TXT */
     }
 
     return err;
