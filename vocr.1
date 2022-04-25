@@ -3,7 +3,7 @@
 vocr - a simple utility for performing optical character recognition
 on images and PDFs
 .SH SYNOPSIS
-vocr [-i [no|tab]] [-p] [-v] [files]
+vocr [-p] [-v] [-i [no|tab]] [-l [lang]] [files]
 .SH DESCRIPTION
 vocr is a simple utility for performing optical character recognition
 (OCR) on images and PDFs. It prints any text found in the specified
@@ -18,7 +18,8 @@ will indent using tabs instead of spaces (by default vocr indents using
 spaces).
 .TP
 .B \-p
-When OCR'ing a PDF, vocr inserts a page break (^L) at the end of each page.
+When OCR'ing a PDF, tells vocr to insert a page break (^L) at the end
+of each page.
 .TP
 .B \-l [lang]
 If -l is specified, on MacOSX 11.x (BigSur) and newer, vocr will ask the
