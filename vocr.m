@@ -714,6 +714,14 @@ static BOOL ocrFile(const char *file,
 }
 
 #ifdef VOCR_DEBUG
+
+/*
+    printSupportedLangs - list what languages are supported by
+                          VNRecognizeTextRequest
+
+    see: https://developer.apple.com/documentation/vision/vnrecognizetextrequest/3152642-recognitionlanguages?language=objc
+*/
+
 static void printSupportedLangs(void)
 {
     NSArray<NSString *> *langs;
