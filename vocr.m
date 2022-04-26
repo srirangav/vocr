@@ -11,6 +11,7 @@
     v. 0.2.0 (04/24/2022) - print text as soon as it has been recognized,
                             default to quiet mode
     v. 0.3.0 (04/25/2022) - add language support
+    v. 0.3.1 (04/24/2022) - move printSupportedLangs to separate file
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -115,9 +116,6 @@ typedef struct
 static void printUsage(void);
 static void printError(const char *format, ...);
 static void printInfo(const char *format, ...);
-#ifdef VOCR_DEBUG
-static void printSupportedLangs(void);
-#endif /* VOCR_DEBUG */
 static BOOL ocrFile(const char *file,
 #ifdef VOCR_IMG2TXT
                     NSMutableString *text,
@@ -181,144 +179,6 @@ static void printInfo(const char *format, ...)
     vfprintf(stderr, format, args);
     va_end(args);
 }
-
-#ifdef VOCR_DEBUG
-
-/*
-    printSupportedLangs - list what languages are supported by
-                          VNRecognizeTextRequest
-
-    see: https://developer.apple.com/documentation/vision/vnrecognizetextrequest/3152642-recognitionlanguages?language=objc
-*/
-
-static void printSupportedLangs(void)
-{
-    NSArray<NSString *> *langs;
-    NSUInteger i = 0, numLangs = 0;
-
-    /* fast, v1 */
-
-    langs = [VNRecognizeTextRequest
-        supportedRecognitionLanguagesForTextRecognitionLevel:
-            VNRequestTextRecognitionLevelFast
-                                                    revision:
-            VNRecognizeTextRequestRevision1
-                                                       error: nil];
-    if (langs != nil)
-    {
-        fprintf(stderr,"Fast, v1: ");
-        numLangs = [langs count];
-        if (numLangs > 0)
-        {
-            for (i = 0; i < numLangs; i++)
-            {
-                fprintf(stderr,
-                        "'%s' ",
-                        [[langs objectAtIndex: i]
-                            cStringUsingEncoding: NSUTF8StringEncoding]);
-            }
-        }
-        else
-        {
-            fprintf(stderr,"None");
-        }
-        fprintf(stderr, "\n");
-    }
-
-    /* fast, v2 */
-
-    if (@available(macos 11, *))
-    {
-        langs = [VNRecognizeTextRequest
-            supportedRecognitionLanguagesForTextRecognitionLevel:
-                VNRequestTextRecognitionLevelFast
-                                                        revision:
-                VNRecognizeTextRequestRevision2
-                                                           error: nil];
-        if (langs != nil)
-        {
-            fprintf(stderr,"Fast, v2: ");
-            numLangs = [langs count];
-            if (numLangs > 0)
-            {
-                for (i = 0; i < numLangs; i++)
-                {
-                    fprintf(stderr,
-                            "'%s' ",
-                            [[langs objectAtIndex: i]
-                                cStringUsingEncoding: NSUTF8StringEncoding]);
-                }
-            }
-            else
-            {
-                fprintf(stderr,"None");
-            }
-            fprintf(stderr, "\n");
-        }
-    }
-
-    /* accurate, v1 */
-
-    langs = [VNRecognizeTextRequest
-        supportedRecognitionLanguagesForTextRecognitionLevel:
-            VNRequestTextRecognitionLevelAccurate
-                                                    revision:
-            VNRecognizeTextRequestRevision1
-                                                       error: nil];
-    if (langs != nil)
-    {
-        fprintf(stderr,"Accurate, v1: ");
-        numLangs = [langs count];
-        if (numLangs > 0)
-        {
-            for (i = 0; i < numLangs; i++)
-            {
-                fprintf(stderr,
-                        "'%s' ",
-                        [[langs objectAtIndex: i]
-                            cStringUsingEncoding: NSUTF8StringEncoding]);
-            }
-        }
-        else
-        {
-            fprintf(stderr,"None");
-        }
-        fprintf(stderr, "\n");
-    }
-
-    /* accurate, v2 */
-
-    if (@available(macos 11, *))
-    {
-        langs = [VNRecognizeTextRequest
-            supportedRecognitionLanguagesForTextRecognitionLevel:
-                VNRequestTextRecognitionLevelAccurate
-                                                        revision:
-                VNRecognizeTextRequestRevision2
-                                                           error: nil];
-        if (langs != nil)
-        {
-            fprintf(stderr,"Accurate, v2: ");
-            numLangs = [langs count];
-            if (numLangs > 0)
-            {
-                for (i = 0; i < numLangs; i++)
-                {
-                    fprintf(stderr,
-                            "'%s' ",
-                            [[langs objectAtIndex: i]
-                                cStringUsingEncoding: NSUTF8StringEncoding]);
-                }
-            }
-            else
-            {
-                fprintf(stderr,"None");
-            }
-            fprintf(stderr, "\n");
-        }
-    }
-}
-#endif /* VOCR_DEBUG */
 
 /* ocrImage - try to ocr the specified image */
 
@@ -402,11 +262,13 @@ static BOOL ocrImage(CGImageRef cgImage,
                                                        nil];
 
                     /*
-                        disable language correction for Chinese, see:
+                        disable language correction, fast mode 
+                        for Chinese, see:
                         https://developer.apple.com/documentation/vision/recognizing_text_in_images
                     */
 
                     langCorrect = NO;
+                    fast = NO;
                     break;
                 default:
                     langs = nil;
@@ -1074,9 +936,6 @@ int main(int argc, char * const argv[])
 
     if (optHelp)
     {
-#ifdef VOCR_DEBUG
-        printSupportedLangs();
-#endif /* VOCR_DEBUG */
         return 0;
     }
 

@@ -19,6 +19,9 @@ INSTALL=@INSTALL@
 all:
 	$(OBJC) $(CFLAGS) -o $(PGM) $(PGM_SRCS) $(LIBS)
 
+lslangs:
+	$(OBJC) $(CFLAGS) -o lslangs listSupportedLangs.m $(LIBS)
+
 .PHONY: distclean
 distclean: clean
 	/bin/rm -f Makefile config.log config.status
@@ -26,7 +29,7 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	/bin/rm -f *.o *~ core .DS_Store $(PGM) $(PGM).1.txt *.tgz
+	/bin/rm -f *.o *~ core .DS_Store $(PGM) $(PGM).1.txt lslangs *.tgz
 
 # install and uninstall rules
 # from: http://nuclear.mutantstargoat.com/articles/make/#writing-install-uninstall-rules
