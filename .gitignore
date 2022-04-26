@@ -26,3 +26,4 @@ autom4te.cache
 *.status
 *.zip
 vocr
+vocr.1.txt

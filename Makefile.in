@@ -22,6 +22,9 @@ all:
 lslangs:
 	$(OBJC) $(CFLAGS) -o lslangs listSupportedLangs.m $(LIBS)
 
+man2txt:
+	nroff -Tascii -man $(PGM_MAN) | col -b -x > $(PGM_MAN).txt
+
 .PHONY: distclean
 distclean: clean
 	/bin/rm -f Makefile config.log config.status
@@ -29,7 +32,8 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	/bin/rm -f *.o *~ core .DS_Store $(PGM) $(PGM).1.txt lslangs *.tgz
+	/bin/rm -f *.o *~ core .DS_Store $(PGM) $(PGM_MAN).txt lslangs *.tgz
+	/bin/rm -rf ./$(PGM).dSYM ./lslangs.dSYM
 
 # install and uninstall rules
 # from: http://nuclear.mutantstargoat.com/articles/make/#writing-install-uninstall-rules
