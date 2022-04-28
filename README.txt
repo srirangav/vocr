@@ -4,6 +4,12 @@ README
 vocr v0.2.0
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
+Homepage:
+
+    https://github.com/srirangav/vocr
+
+About:
+
 vocr is a MacOSX command line program that can perform optical
 character recognition (OCR) on images and PDF files.  It outputs
 any text found in the input files to stdout.  vocr relies on,
