@@ -93,8 +93,8 @@ History:
 
 Platforms:
 
-    vocr has been tested on MacOSX 11 (BigSur) on M1.  It should work
-    on MacOSX 10.15+ (Catalina) or newer.
+    vocr has been tested on MacOSX 11 (BigSur) on M1 and x86_64.  It
+    should also work on MacOSX 10.15+ (Catalina) x86_64.
 
 License:
 
