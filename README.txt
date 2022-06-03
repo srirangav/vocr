@@ -1,7 +1,7 @@
 README
 ------
 
-vocr v0.2.0
+vocr v0.2.1
 By Sriranga Veeraraghavan <ranga@calalum.org>
 
 Homepage:
@@ -86,6 +86,8 @@ Dependencies:
 
 History:
 
+    v. 0.2.1 - update configure with additional compiler options
+               related to security
     v. 0.2.0 - print text as soon as it has been recognized,
                default to quiet mode, add support for languages
                other than English

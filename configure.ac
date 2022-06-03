@@ -1,7 +1,7 @@
 dnl -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([vocr],[0.1.0],[ranga@calalum.org])
+AC_INIT([vocr],[0.2.1],[ranga@calalum.org])
 
 # We want to turn on warnings if we are using gcc and the user did 
 # not specify CFLAGS. The autoconf check for the C compiler sets the
@@ -108,6 +108,9 @@ define([TEST_AND_SET_CFLAG],[
 ])
 
 # test and set compiler flags
+# based on:
+# https://airbus-seclab.github.io/c-compiler-security/clang_compilation.html
+# https://developers.redhat.com/articles/2022/06/02/use-compiler-flags-stack-protection-gcc-and-clang
 
 TEST_AND_SET_CFLAG(-W)
 TEST_AND_SET_CFLAG(-Wall)
@@ -128,6 +131,8 @@ TEST_AND_SET_CFLAG(-Wconversion)
 TEST_AND_SET_CFLAG(-Wtraditional-conversion)
 TEST_AND_SET_CFLAG(-Warith-conversion)
 TEST_AND_SET_CFLAG(-Wstack-protector)
+TEST_AND_SET_CFLAG(-Wstack-usage)
+TEST_AND_SET_CFLAG(-Winfinite-recursion)
 TEST_AND_SET_CFLAG(-Wnull-dereference)
 TEST_AND_SET_CFLAG(-Wvla)
 TEST_AND_SET_CFLAG(-Warray-bounds-pointer-arithmetic)
@@ -165,8 +170,11 @@ TEST_AND_SET_CFLAG(-Wlogical-op)
 TEST_AND_SET_CFLAG(-Wduplicated-cond)
 TEST_AND_SET_CFLAG(-Wduplicated-branches)
 TEST_AND_SET_CFLAG(-Wundef)
+TEST_AND_SET_CFLAG(-fstack-usage)
 TEST_AND_SET_CFLAG(-fstack-protector-all) 
 TEST_AND_SET_CFLAG(-fstack-protector-strong)
+TEST_AND_SET_CFLAG(-fstack-protector-explicit)
+TEST_AND_SET_CFLAG(-mshstk)
 TEST_AND_SET_CFLAG(-fsanitize=safe-stack)
 #TEST_AND_SET_CFLAG(-fsanitize=shadow-call-stack)
 TEST_AND_SET_CFLAG(-fsanitize=cfi)
@@ -188,6 +196,11 @@ TEST_AND_SET_CFLAG(-D_GLIBCXX_ASSERTIONS)
 TEST_AND_SET_CFLAG(-fasynchronous-unwind-tables)
 TEST_AND_SET_CFLAG(-fwrapv)
 TEST_AND_SET_CFLAG(-flto)
+TEST_AND_SET_CFLAG(-fsplit-stack)
+TEST_AND_SET_CFLAG(-fstack-limit-register)
+TEST_AND_SET_CFLAG(-fstack-limit-symbol)
+TEST_AND_SET_CFLAG(-fno-stack-array)
+TEST_AND_SET_CFLAG(-mbranch-protection=standard)
 
 OBJCFLAGS="$OBJCFLAGS $CFLAGS"
 
