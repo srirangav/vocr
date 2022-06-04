@@ -2,7 +2,6 @@ README
 ------
 
 vocr v0.2.1
-By Sriranga Veeraraghavan <ranga@calalum.org>
 
 Homepage:
 
