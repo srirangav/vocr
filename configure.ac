@@ -1,7 +1,7 @@
 dnl -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([vocr],[0.2.1],[ranga@calalum.org])
+AC_INIT([vocr],[0.2.2],[ranga@calalum.org])
 
 # We want to turn on warnings if we are using gcc and the user did 
 # not specify CFLAGS. The autoconf check for the C compiler sets the
@@ -25,7 +25,8 @@ CFLAGS="$save_CFLAGS $CFLAGS"
 
 # check for source files
 
-AC_CONFIG_SRCDIR([vocr.m])
+PGM_SRCS="vocr.m"
+AC_CONFIG_SRCDIR([$PGM_SRCS])
 
 # Check basic types.
 
@@ -176,6 +177,7 @@ TEST_AND_SET_CFLAG(-fstack-protector-strong)
 TEST_AND_SET_CFLAG(-fstack-protector-explicit)
 TEST_AND_SET_CFLAG(-mshstk)
 TEST_AND_SET_CFLAG(-fsanitize=safe-stack)
+# not supported on MacOSX
 #TEST_AND_SET_CFLAG(-fsanitize=shadow-call-stack)
 TEST_AND_SET_CFLAG(-fsanitize=cfi)
 TEST_AND_SET_CFLAG(-fsanitize=memory)
@@ -206,5 +208,6 @@ OBJCFLAGS="$OBJCFLAGS $CFLAGS"
 
 dnl Process Makefile.in to create Makefile
 AC_CONFIG_FILES([Makefile])
+AC_SUBST([PGM_SRCS])
 AC_OUTPUT
 

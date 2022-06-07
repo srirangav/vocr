@@ -1,7 +1,7 @@
 # Makefile.in for vocr
 
 PREFIX = @prefix@
-PGM_SRCS = vocr.m
+PGM_SRCS = @PGM_SRCS@
 PGM = @PACKAGE_NAME@
 PGM_REL = @PACKAGE_VERSION@
 PGM_MAN = $(PGM).1
