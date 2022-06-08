@@ -1,9 +1,9 @@
 .TH vocr 1
 .SH NAME
-vocr - a simple utility for performing optical character recognition
+vocr \- a simple utility for performing optical character recognition
 on images and PDFs
 .SH SYNOPSIS
-vocr [-p] [-v] [-f] [-i [no|tab]] [-l [lang]] [files]
+vocr [\-p] [\-v] [\-f] [\-i [no|tab]] [\-l [lang]] [files]
 .SH DESCRIPTION
 vocr is a simple utility for performing optical character recognition
 (OCR) on images and PDFs. It prints any text found in the specified
@@ -12,28 +12,28 @@ Vision framework (v for [V]ision).
 .SH OPTIONS
 .TP
 .B \-i [no|tab]
-If -i is specified with the 'no' option, vocr will not attempt to indent
-any text that is OCR'ed.  If -i is specified with the 'tab' option, vocr
+If \-i is specified with the "no" option, vocr will not attempt to indent
+any text that is OCR\'ed.  If \-i is specified with the "tab" option, vocr
 will indent using tabs instead of spaces (by default vocr indents using
 spaces).
 .TP
 .B \-p
-When OCR'ing a PDF, tells vocr to insert a page break (^L) at the end
+When OCR\'ing a PDF, tells vocr to insert a page break (^L) at the end
 of each page.
 .TP
 .B \-f
 Use the [f]ast algorithm for ocr.  This may be useful when recognizing
-text in non-English languages, such as German.
+text in non\-English languages, such as German.
 .TP
 .B \-l [lang]
-If -l is specified, on MacOSX 11.x (BigSur) and newer, vocr will ask the
+If \-l is specified, on MacOSX 11.x (BigSur) and newer, vocr will ask the
 Vision framework to recognize the text in the specified language.  The
-supported language options are: 'de' (German), 'en' (English), 'fr'
-(French), 'it' (Italian), 'pt' (Portuguese), 'es' (Spanish), 'zh'
+supported language options are: "de" (German), "en" (English), "fr"
+(French), "it" (Italian), "pt" (Portuguese), "es" (Spanish), "zh"
 (Chinese).
 .TP
 .B \-v
-Enables verbose mode - vocr will print out informational and/or error
+Enables verbose mode \- vocr will print out informational and error
 messages.
 .SH PLATFORMS
 vorc has been tested on MacOSX 11.x (BigSur) on M1 and x86_64.  It
