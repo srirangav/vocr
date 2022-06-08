@@ -1,7 +1,7 @@
 README
 ------
 
-vocr v0.2.2
+vocr v0.2.3
 
 Homepage:
 
@@ -85,6 +85,7 @@ Dependencies:
 
 History:
 
+    v. 0.2.3 - fix manpage formatting
     v. 0.2.2 - move source files into configure.ac
     v. 0.2.1 - update configure with additional compiler options
                related to security
