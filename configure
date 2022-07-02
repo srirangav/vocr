@@ -2709,6 +2709,37 @@ else
 printf "%s\n" "yes" >&6; }
 fi
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for PDFKit" >&5
+printf %s "checking for PDFKit... " >&6; }
+LIBS="$LIBS -framework PDFKit"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#import <PDFKit/PDFKit.h>
+int
+main (void)
+{
+
+                [[PDFDocument alloc] init];
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_objc_try_link "$LINENO"
+then :
+  has_framework=1
+else $as_nop
+  has_framework=0
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+if test $has_framework = 0; then
+  as_fn_error $? "AppKit is required" "$LINENO" 5
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+fi
+
 # check for Vision
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for Vison" >&5

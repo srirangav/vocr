@@ -12,6 +12,7 @@
                             default to quiet mode
     v. 0.3.0 (04/25/2022) - add language support
     v. 0.3.1 (04/24/2022) - move printSupportedLangs to separate file
+    v. 0.4.0 (07/10/2022) - switch to PDFKit
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -37,6 +38,7 @@
 
 #import <AppKit/AppKit.h>
 #import <Vision/Vision.h>
+#import <PDFKit/PDFKit.h>
 #import <stdio.h>
 #import <stdarg.h>
 #import <unistd.h>
@@ -56,7 +58,10 @@ static const NSUInteger
 
 /*
     command line options:
-        -f        - use the [f]ast recognition algorithm
+        -a        - set the ocr [a]lgorithm
+                    'fast'     - uses the fast algorithm
+                    'accurate' - uses the accurate algorithm
+        -f        - force ocr
         -h        - print usage / [h]elp
         -i [mode] - set the [i]ndent mode:
                     'no'  - disables indenting
@@ -68,7 +73,8 @@ static const NSUInteger
 
 enum
 {
-    gPgmOptFast      = 'f',
+    gPgmOptAlgorithm = 'a',
+    gPgmOptForce     = 'f',
     gPgmOptHelp      = 'h',
     gPgmOptIndent    = 'i',
     gPgmOptLang      = 'l',
@@ -87,7 +93,9 @@ enum
     gLangChinese    = 'z', /* zh-Hans and zh-Hant */
 };
 
-static const char *gPgmOpts      = "fhpvi:l:";
+static const char *gPgmOpts      = "fhpva:i:l:";
+static const char *gPgmAlgorithmAccurate = "accurate";
+static const char *gPgmAlgorithmFast     = "fast";
 static const char *gPgmIndentNo  = "no";
 static const char *gPgmIndentTab = "tab";
 static BOOL       gQuiet         = YES;
@@ -108,6 +116,7 @@ typedef struct
     BOOL fast;
     BOOL indent;
     BOOL indentWithTabs;
+    BOOL forceOCR;
     int lang;
 } ocrOpts_t;
 
@@ -134,11 +143,13 @@ static BOOL ocrImage(CGImageRef cgImage,
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] | [-%c] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [files]\n",
+            "Usage: %s [-%c] [-%c [%s|%s]] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [files]\n",
             gPgmName,
-            gPgmOptHelp,
             gPgmOptVerbose,
-            gPgmOptFast,
+            gPgmOptAlgorithm,
+            gPgmAlgorithmAccurate,
+            gPgmAlgorithmFast,
+            gPgmOptForce,
             gPgmOptPageBreak,
             gPgmOptIndent,
             gPgmIndentNo,
@@ -262,7 +273,7 @@ static BOOL ocrImage(CGImageRef cgImage,
                                                        nil];
 
                     /*
-                        disable language correction, fast mode 
+                        disable language correction, fast mode
                         for Chinese, see:
                         https://developer.apple.com/documentation/vision/recognizing_text_in_images
                     */
@@ -556,14 +567,16 @@ static BOOL ocrFile(const char *file,
     NSWorkspace *workspace = nil;
     NSString *path = nil;
     NSURL *fURL = nil;
-    NSString *type = nil;
+    NSString *type = nil, *pageText = nil;
     NSError *error = nil;
     NSImage *image = nil;
     NSRect imageRect;
     CGImageRef cgImage;
     NSData *pdfData = nil;
     NSPDFImageRep *pdfImageRep = nil;
-    NSInteger pdfPages = 0, i = 0;
+    PDFDocument *pdfDoc = nil;
+    PDFPage *pdfPage = nil;
+    NSUInteger pdfPages = 0, i = 0;
 #ifdef VOCR_IMG2TXT
     NSMutableString *pdfText = nil;
 #endif /* VOCR_IMG2TXT */
@@ -647,26 +660,16 @@ static BOOL ocrFile(const char *file,
 
         /* get the PDF data for the file */
 
-        pdfData = [NSData dataWithContentsOfURL: fURL];
-        if (pdfData == nil)
+        pdfDoc = [[PDFDocument alloc] initWithURL: fURL];
+        if (pdfDoc == nil)
         {
             printError("Not a valid PDF: '%s'.\n", file);
             return NO;
         }
 
-        /* get an image representation of the PDF data */
-
-        pdfImageRep = [NSPDFImageRep imageRepWithData: pdfData];
-        if (pdfData == nil)
-        {
-            printError("Cannot convert PDF to image: '%s'.\n",
-                       file);
-            return NO;
-        }
-
         /* get the page count and make sure we have at least 1 page */
 
-        pdfPages = [pdfImageRep pageCount];
+        pdfPages = [pdfDoc pageCount];
         if (pdfPages < 1)
         {
             printError("PDF has no pages: '%s'.\n", file);
@@ -677,7 +680,46 @@ static BOOL ocrFile(const char *file,
 
         for(i = 0 ; i < pdfPages ; i++) {
 
-            [pdfImageRep setCurrentPage: i];
+            pdfPage = [pdfDoc pageAtIndex: i];
+            if (pdfPage == NULL)
+            {
+                printError("Could not get p.%ld of '%s'.\n",
+                           i+1, file);
+                continue;
+            }
+
+            /* if ocr isn't being forced, see if we can just use
+               the existing text representation for this page */
+
+            if (opts->forceOCR == NO)
+            {
+                pageText = [[pdfPage string] stringByTrimmingCharactersInSet:
+                        [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+                if (pageText != nil && [pageText length] > 0)
+                {
+                    fprintf(stdout,
+                            "%s\n",
+                            [pageText cStringUsingEncoding: NSUTF8StringEncoding]);
+                    continue;
+                }
+            }
+
+            pdfData = [pdfPage dataRepresentation];
+            if (pdfData == NULL)
+            {
+                printError("Could not get contents of p.%ld of '%s'.\n",
+                           i+1, file);
+            }
+
+            pdfImageRep = [NSPDFImageRep imageRepWithData: pdfData];
+            if (pdfData == nil)
+            {
+                printError("Cannot convert PDF to image: '%s'.\n",
+                           file);
+                return NO;
+            }
+
+            [pdfImageRep setCurrentPage: 0];
 
             /* create an image for the current page */
 
@@ -830,6 +872,7 @@ int main(int argc, char * const argv[])
     options.indent = YES;
     options.indentWithTabs = NO;
     options.lang = gLangEnglish;
+    options.forceOCR = NO;
 
     while ((ch = getopt(argc, argv, gPgmOpts)) != -1)
     {
@@ -838,8 +881,23 @@ int main(int argc, char * const argv[])
             case gPgmOptHelp:
                 optHelp = YES;
                 break;
-            case gPgmOptFast:
-                options.fast = YES;
+            case gPgmOptAlgorithm:
+                if (strcmp(optarg, gPgmAlgorithmAccurate) == 0)
+                {
+                    options.fast = NO;
+                }
+                else if (strcmp(optarg, gPgmAlgorithmFast) == 0)
+                {
+                    options.fast = YES;
+                }
+                else
+                {
+                    printError("Unsupported algorithm: '%s'\n", optarg);
+                    err++;
+                }
+                break;
+            case gPgmOptForce:
+                options.forceOCR = YES;
                 break;
             case gPgmOptPageBreak:
                 options.addPageBreak = YES;

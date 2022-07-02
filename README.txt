@@ -1,7 +1,7 @@
 README
 ------
 
-vocr v0.2.3
+vocr v0.3.0
 
 Homepage:
 
@@ -16,17 +16,23 @@ and derives its names from, the Vision framework (v for [V]ision).
 
 Usage:
 
-    vocr [-v] [-f] [-p] [-i [no|tab]] [-l [lang]] [files]
+    vocr [-v] [-f] [-p] [-a [accurate|fast]] [-i [no|tab]] [-l [lang]] [files]
 
     If -v is specified, vocr runs in [v]erbose mode and outputs
     errors and informational messages.
 
-    If -f is specified, vocr uses the fast algorithm.  This may be
-    useful when recognizing text in non-English languages, such as
-    German.
+    If -f is specified, vocr will perform ocr on each page in a
+    PDF.  By default, if a PDF already contains a text representation
+    of a given page, vocr will output that text.
 
     If -p is specified, when OCR'ing a PDF, a page break (^L) will
     be inserted at the end of each page.
+
+    if -a is specified with the 'fast' option, vocr will use the
+    'fast' ocr algorithm, which may be useful for non-English
+    languages, such as German.  If -a is specified with the 'accurate'
+    option, vour will use the 'accurate' ocr algorithm (which is the
+    default).
 
     If -i is specified with the 'no' option, vocr will not attempt
     to indent any text that is OCR'ed.  If -i is specified with the
@@ -85,6 +91,7 @@ Dependencies:
 
 History:
 
+    v. 0.3.0 - switch to PDFKit
     v. 0.2.3 - fix manpage formatting
     v. 0.2.2 - move source files into configure.ac
     v. 0.2.1 - update configure with additional compiler options
@@ -96,10 +103,10 @@ History:
 
 Platforms:
 
-    vocr has been tested on MacOSX 11 (BigSur) on M1 and x86_64.  It
-    should also work on MacOSX 10.15+ (Catalina) x86_64.
+    vocr has been tested on MacOSX 11 (BigSur) on M1 and x86_64.
+    It should also work on MacOSX 10.15+ (Catalina) x86_64 and
+    MacOSX 12.x (Monterey) x86_64 and M1/M2.
 
 License:
 
     See LICENSE.txt
-

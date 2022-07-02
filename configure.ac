@@ -49,6 +49,17 @@ else
   AC_MSG_RESULT([yes])
 fi
 
+AC_MSG_CHECKING([for PDFKit])
+LIBS="$LIBS -framework PDFKit"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([#import <PDFKit/PDFKit.h>], [
+                [[[PDFDocument alloc] init];]])
+                ],[has_framework=1],[has_framework=0])
+if test $has_framework = 0; then
+  AC_MSG_ERROR([AppKit is required])
+else
+  AC_MSG_RESULT([yes])
+fi
+
 # check for Vision
 
 AC_MSG_CHECKING([for Vison])
