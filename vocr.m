@@ -678,7 +678,8 @@ static BOOL ocrFile(const char *file,
 
         /* ocr each page */
 
-        for(i = 0 ; i < pdfPages ; i++) {
+        for(i = 0 ; i < pdfPages ; i++)
+        {
 
             pdfPage = [pdfDoc pageAtIndex: i];
             if (pdfPage == NULL)
@@ -1018,7 +1019,7 @@ int main(int argc, char * const argv[])
 
     for (i = 0; i < argc; i++)
     {
-        if (argv[i] == NULL)
+        if (argv[i] == NULL || argv[i][0] == '\0')
         {
             err++;
             printError("Filename is NULL!\n");
