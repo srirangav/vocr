@@ -1,9 +1,9 @@
 dnl -*- Autoconf -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([vocr],[0.2.3],[ranga@calalum.org])
+AC_INIT([vocr],[0.3.1],[ranga@calalum.org])
 
-# We want to turn on warnings if we are using gcc and the user did 
+# We want to turn on warnings if we are using gcc and the user did
 # not specify CFLAGS. The autoconf check for the C compiler sets the
 # CFLAGS if gcc is used, so we will save it before we run that check.
 #
@@ -60,6 +60,22 @@ else
   AC_MSG_RESULT([yes])
 fi
 
+# check for UTType
+
+AC_MSG_CHECKING([for UTType])
+SAVE_LIBS="$LIBS"
+LIBS="$LIBS -framework UniformTypeIdentifiers"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>], [
+                [[UTType typeWithIdentifier: @"public.image"];]])
+                ],[has_framework=1],[has_framework=0])
+if test $has_framework = 0; then
+    AC_MSG_RESULT([no])
+    LIBS="$SAVE_LIBS"
+else
+    AC_MSG_RESULT([yes])
+    CFLAGS="$CFLAGS -DHAVE_UTT"
+fi
+
 # check for Vision
 
 AC_MSG_CHECKING([for Vison])
@@ -76,21 +92,21 @@ fi
 dnl TEST_AND_SET_CFLAG(flag, [program])
 dnl
 dnl This attempts to compile a program with a certain compiler flag.
-dnl If no program is given, then the minimal program is compiled, and 
-dnl this tests just the validity of the compiler flag. 
+dnl If no program is given, then the minimal program is compiled, and
+dnl this tests just the validity of the compiler flag.
 dnl
 dnl based on: https://github.com/edrosten/autoconf_tutorial
 
 define([TEST_AND_SET_CFLAG],[
-    AC_MSG_CHECKING([if compiler flag $1 works])    
-    
+    AC_MSG_CHECKING([if compiler flag $1 works])
+
     dnl Store the current CXXFLAGS
     save_CFLAGS="$OBJCFLAGS"
 
     dnl Append the flag of interest
 
     OBJCFLAGS="$OBJCFLAGS $1"
-    
+
     dnl Create an M4 macro, "prog", which expands to a C program.
     dnl This should either be a default one or the one specified.
     dnl Note that macros are not local, but there is a stack so push
@@ -98,15 +114,15 @@ define([TEST_AND_SET_CFLAG],[
     dnl that might already exist.
 
     m4_if([$2],[],[pushdef(prog, [int main(){}])], [pushdef(prog, [$2])])
-    
+
     flag_test=0
-    
+
     dnl See if the compiler runs
-    
+
     AC_COMPILE_IFELSE([AC_LANG_SOURCE([prog])], [flag_test=1],[flag_test=0])
-    
+
     dnl De-clobber the "prog" macro
-    
+
     popdef([prog])
 
     if test $flag_test = 1
@@ -127,9 +143,9 @@ define([TEST_AND_SET_CFLAG],[
 TEST_AND_SET_CFLAG(-W)
 TEST_AND_SET_CFLAG(-Wall)
 TEST_AND_SET_CFLAG(-Wextra)
-TEST_AND_SET_CFLAG(-Wpedantic) 
-TEST_AND_SET_CFLAG(-Werror) 
-#TEST_AND_SET_CFLAG(-Wformat=2) 
+TEST_AND_SET_CFLAG(-Wpedantic)
+TEST_AND_SET_CFLAG(-Werror)
+#TEST_AND_SET_CFLAG(-Wformat=2)
 #TEST_AND_SET_CFLAG(-Wformat-nonliteral)
 TEST_AND_SET_CFLAG(-Wformat-overflow=2)
 TEST_AND_SET_CFLAG(-Wformat-truncation=2)
@@ -139,7 +155,7 @@ TEST_AND_SET_CFLAG(-Wformat-signedness)
 TEST_AND_SET_CFLAG(-Wtrampolines)
 TEST_AND_SET_CFLAG(-Walloca)
 TEST_AND_SET_CFLAG(-Wcast-qual)
-TEST_AND_SET_CFLAG(-Wconversion) 
+TEST_AND_SET_CFLAG(-Wconversion)
 TEST_AND_SET_CFLAG(-Wtraditional-conversion)
 TEST_AND_SET_CFLAG(-Warith-conversion)
 TEST_AND_SET_CFLAG(-Wstack-protector)
@@ -183,7 +199,7 @@ TEST_AND_SET_CFLAG(-Wduplicated-cond)
 TEST_AND_SET_CFLAG(-Wduplicated-branches)
 TEST_AND_SET_CFLAG(-Wundef)
 TEST_AND_SET_CFLAG(-fstack-usage)
-TEST_AND_SET_CFLAG(-fstack-protector-all) 
+TEST_AND_SET_CFLAG(-fstack-protector-all)
 TEST_AND_SET_CFLAG(-fstack-protector-strong)
 TEST_AND_SET_CFLAG(-fstack-protector-explicit)
 TEST_AND_SET_CFLAG(-mshstk)

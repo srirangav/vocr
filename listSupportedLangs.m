@@ -5,6 +5,7 @@
     History:
 
     v. 0.1.0 (04/25/2022) - Initial version
+    v. 0.2.0 (10/29/2022) - Updates for MacOSX 12 (Monterey)
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -54,12 +55,21 @@ static void listSupportedLangs(void)
 
     /* fast, v1 */
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
     langs = [VNRecognizeTextRequest
         supportedRecognitionLanguagesForTextRecognitionLevel:
             VNRequestTextRecognitionLevelFast
                                                     revision:
             VNRecognizeTextRequestRevision1
                                                        error: nil];
+#else
+    VNRecognizeTextRequest *vnr = [[VNRecognizeTextRequest alloc] init];
+    [vnr setRecognitionLevel: VNRequestTextRecognitionLevelFast];
+    [vnr setRevision: VNRecognizeTextRequestRevision1];
+    langs = [vnr
+             supportedRecognitionLanguagesAndReturnError: nil];
+#endif
+
     if (langs != nil)
     {
         fprintf(stderr,"Fast, v1:     ");
@@ -85,12 +95,19 @@ static void listSupportedLangs(void)
 
     if (@available(macos 11, *))
     {
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
         langs = [VNRecognizeTextRequest
             supportedRecognitionLanguagesForTextRecognitionLevel:
                 VNRequestTextRecognitionLevelFast
                                                         revision:
                 VNRecognizeTextRequestRevision2
                                                            error: nil];
+#else
+    [vnr setRecognitionLevel: VNRequestTextRecognitionLevelFast];
+    [vnr setRevision: VNRecognizeTextRequestRevision2];
+    langs = [vnr
+             supportedRecognitionLanguagesAndReturnError: nil];
+#endif
         if (langs != nil)
         {
             fprintf(stderr,"Fast, v2:     ");
@@ -115,12 +132,20 @@ static void listSupportedLangs(void)
 
     /* accurate, v1 */
 
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
     langs = [VNRecognizeTextRequest
         supportedRecognitionLanguagesForTextRecognitionLevel:
             VNRequestTextRecognitionLevelAccurate
                                                     revision:
             VNRecognizeTextRequestRevision1
                                                        error: nil];
+#else
+    [vnr setRecognitionLevel: VNRequestTextRecognitionLevelAccurate];
+    [vnr setRevision: VNRecognizeTextRequestRevision1];
+    langs = [vnr
+             supportedRecognitionLanguagesAndReturnError: nil];
+#endif
+
     if (langs != nil)
     {
         fprintf(stderr,"Accurate, v1: ");
@@ -146,12 +171,18 @@ static void listSupportedLangs(void)
 
     if (@available(macos 11, *))
     {
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
         langs = [VNRecognizeTextRequest
             supportedRecognitionLanguagesForTextRecognitionLevel:
                 VNRequestTextRecognitionLevelAccurate
                                                         revision:
                 VNRecognizeTextRequestRevision2
                                                            error: nil];
+#else
+    [vnr setRevision: VNRecognizeTextRequestRevision2];
+    langs = [vnr
+             supportedRecognitionLanguagesAndReturnError: nil];
+#endif
         if (langs != nil)
         {
             fprintf(stderr,"Accurate, v2: ");
@@ -173,6 +204,7 @@ static void listSupportedLangs(void)
             fprintf(stderr, "\n");
         }
     }
+
 }
 
 /* main */

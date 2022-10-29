@@ -1,7 +1,7 @@
 README
 ------
 
-vocr v0.3.0
+vocr v0.3.1
 
 Homepage:
 
@@ -9,10 +9,10 @@ Homepage:
 
 About:
 
-vocr is a MacOSX command line program that can perform optical
-character recognition (OCR) on images and PDF files.  It outputs
-any text found in the input files to stdout.  vocr relies on,
-and derives its names from, the Vision framework (v for [V]ision).
+    vocr is a MacOSX command line program that can perform optical
+    character recognition (OCR) on images and PDF files.  It outputs
+    any text found in the input files to stdout.  vocr relies on,
+    and derives its names from, the Vision framework (v for [V]ision).
 
 Usage:
 
@@ -91,6 +91,7 @@ Dependencies:
 
 History:
 
+    v. 0.3.1 - updates for Monterey (MacOSX 12)
     v. 0.3.0 - switch to PDFKit
     v. 0.2.3 - fix manpage formatting
     v. 0.2.2 - move source files into configure.ac
@@ -103,9 +104,8 @@ History:
 
 Platforms:
 
-    vocr has been tested on MacOSX 11 (BigSur) on M1 and x86_64.
-    It should also work on MacOSX 10.15+ (Catalina) x86_64 and
-    MacOSX 12.x (Monterey) x86_64 and M1/M2.
+    vocr has been tested on MacOSX 11 (BigSur) and 12 (Monterey) on M1
+    and x86_64. It should also work on MacOSX 10.15+ (Catalina) x86_64.
 
 License:
 

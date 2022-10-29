@@ -13,6 +13,7 @@
     v. 0.3.0 (04/25/2022) - add language support
     v. 0.3.1 (04/24/2022) - move printSupportedLangs to separate file
     v. 0.4.0 (07/10/2022) - switch to PDFKit
+    v. 0.4.1 (10/28/2022) - updates for Monterey (MacOSX 12.x)
 
     Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -39,6 +40,16 @@
 #import <AppKit/AppKit.h>
 #import <Vision/Vision.h>
 #import <PDFKit/PDFKit.h>
+
+/*
+    use UTT, if available
+    see: https://stackoverflow.com/questions/70512722
+*/
+
+#ifdef HAVE_UTT
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#endif
+
 #import <stdio.h>
 #import <stdarg.h>
 #import <unistd.h>
@@ -47,14 +58,16 @@
 
 /* globals */
 
-static NSString   *gUTIPDF    = @"com.adobe.pdf";
-static NSString   *gUTIIMG    = @"public.image";
 static NSString   *gIndentStr = @"    ";
 static const char *gPgmName   = "vocr";
 #ifdef VOCR_IMG2TXT
 static const NSUInteger
                   gBufSize    = 1024;
 #endif /* VOCR_IMG2TXT */
+#ifndef HAVE_UTT
+static NSString   *gUTIPDF    = @"com.adobe.pdf";
+static NSString   *gUTIIMG    = @"public.image";
+#endif
 
 /*
     command line options:
@@ -241,11 +254,11 @@ static BOOL ocrImage(CGImageRef cgImage,
         }
 
         /*
-            on BigSur (11.x) and newer, try to set the
+            on BigSur (10.16) and newer, try to set the
             recognition language
         */
 
-        if (@available(macos 11, *))
+        if (@available(macos 10.16, *))
         {
             switch(opts->lang)
             {
@@ -350,15 +363,15 @@ static BOOL ocrImage(CGImageRef cgImage,
     [request setUsesLanguageCorrection: langCorrect];
 
     /*
-        use the version 2 algorithm on MacOSX 11+, which supports
-        multiple languages, and, if an alternate language is requested
-        set that as well:
+        use the version 2 algorithm on MacOSX 10.16+ (BigSur or newer),
+        which support multiple languages, and, if an alternate language
+        is requested set that as well:
 
         https://developer.apple.com/documentation/vision/vnrecognizetextrequestrevision2?language=objc
         https://stackoverflow.com/questions/63813709
     */
 
-    if (@available(macos 11, *))
+    if (@available(macos 10.16, *))
     {
         [request setRevision: VNRecognizeTextRequestRevision2];
         if (langs != nil)
@@ -580,6 +593,9 @@ static BOOL ocrFile(const char *file,
 #ifdef VOCR_IMG2TXT
     NSMutableString *pdfText = nil;
 #endif /* VOCR_IMG2TXT */
+#ifdef HAVE_UTT
+     UTType *utt = nil;
+#endif
 
     if (file == NULL || file[0] == '\0')
     {
@@ -639,8 +655,12 @@ static BOOL ocrFile(const char *file,
     }
 
     /* ocr a PDF */
-
+#ifdef HAVE_UTT
+    utt = [UTType typeWithIdentifier: type];
+    if ([utt conformsToType: UTTypePDF])
+#else
     if ([workspace type: type conformsToType: gUTIPDF])
+#endif
     {
 
 #ifdef VOCR_IMG2TXT
@@ -790,7 +810,12 @@ static BOOL ocrFile(const char *file,
 
     /* ocr an image */
 
+#ifdef HAVE_UTT
+    utt = [UTType typeWithIdentifier: type];
+    if ([utt conformsToType: UTTypeImage])
+#else
     if ([workspace type: type conformsToType: gUTIIMG])
+#endif
     {
         image = [[NSImage alloc] initWithContentsOfURL: fURL];
         if (image == nil)
