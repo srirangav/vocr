@@ -70,6 +70,11 @@ static const NSUInteger gBufSize = 1024;
 static NSString   *gUTIPDF    = @"com.adobe.pdf";
 static NSString   *gUTIIMG    = @"public.image";
 #endif
+#ifdef vocr_version
+static NSString   *gPgmVers   = vocr_version;
+#else
+static NSString   *gPgmVers   = @"0.1.0;
+#endif
 
 /*
     command line options:
@@ -85,6 +90,7 @@ static NSString   *gUTIIMG    = @"public.image";
         -L - list languages available for recognition
         -p - add a page break / [l]ine feed between pages
         -v - be [v]erbose
+        -V - print vocr's version
 */
 
 enum
@@ -97,6 +103,7 @@ enum
     gPgmOptPageBreak = 'p',
     gPgmOptVerbose   = 'v',
     gPgmOptListLangs = 'L',
+    gPgmOptVersion   = 'V',
 };
 
 /* enumeration of supported languages */
@@ -128,7 +135,7 @@ typedef enum
     gAlgorithmAll,
 } supportedAlgorithms_t;
 
-static const char *gPgmOpts      = "fhpvLa:i:l:";
+static const char *gPgmOpts      = "fhpvLVa:i:l:";
 static const char *gPgmAlgorithmAccurate = "accurate";
 static const char *gPgmAlgorithmFast     = "fast";
 static const char *gPgmIndentNo  = "no";
@@ -214,7 +221,7 @@ static void listSupportedLangs(supportedAlgorithms_t algorithm);
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c [%s|%s]] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [-%c] [files]\n",
+            "Usage: %s [-%c] [-%c [%s|%s]] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [files]\n",
             gPgmName,
             gPgmOptVerbose,
             gPgmOptAlgorithm,
@@ -225,8 +232,15 @@ static void printUsage(void)
             gPgmOptIndent,
             gPgmIndentNo,
             gPgmIndentTab,
-            gPgmOptLang,
-            gPgmOptListLangs);
+            gPgmOptLang);
+
+    fprintf(stderr,
+            "       %s [-%c] [-%c [%s|%s]]\n",
+            gPgmName,
+            gPgmOptListLangs,
+            gPgmOptAlgorithm,
+            gPgmAlgorithmAccurate,
+            gPgmAlgorithmFast);
 }
 
 /* ocrImage - try to ocr the specified image */
@@ -296,7 +310,7 @@ static BOOL ocrImage(CGImageRef cgImage,
                     break;
 
                 case gLangEnglish:
-                
+
                     langs = nil;
                     break;
 
@@ -320,9 +334,9 @@ static BOOL ocrImage(CGImageRef cgImage,
                     langs = [NSArray arrayWithObjects: @"es-ES", nil];
                     break;
 
-                /* 
+                /*
                     fast mode not supported for Korean, Japanese, Russian,
-                    Ukrainian, Thai, Vietnamese, Cantonese, or Chinese 
+                    Ukrainian, Thai, Vietnamese, Cantonese, or Chinese
                 */
 
                 case gLangKorean:
@@ -379,7 +393,7 @@ static BOOL ocrImage(CGImageRef cgImage,
                     break;
 
                 case gLangChinese:
-                
+
                     langs = [NSArray arrayWithObjects: @"zh-Hans",
                                                        @"zh-Hant",
                                                        @"en-US",
@@ -394,7 +408,7 @@ static BOOL ocrImage(CGImageRef cgImage,
                     langCorrect = NO;
                     fast = NO;
                     break;
-                    
+
                 default:
 
                     langs = nil;
@@ -1059,7 +1073,7 @@ static void listSupportedLangs(supportedAlgorithms_t algorithm)
         }
 
         /* fast, v3 */
-        
+
         if (@available(macos 13, *))
         {
             [vnr setRevision: VNRecognizeTextRequestRevision3];
@@ -1208,7 +1222,9 @@ static void listSupportedLangs(supportedAlgorithms_t algorithm)
 int main(int argc, char * const argv[])
 {
     int i = 0, err = 0, ch = 0;
-    BOOL optHelp = NO, optListLangs = NO;
+    BOOL optHelp = NO;
+    BOOL optListLangs = NO;
+    BOOL optVersion = NO;
 #ifdef VOCR_IMG2TXT
     NSMutableString *text = nil;
 #endif /* VOCR_IMG2TXT */
@@ -1258,6 +1274,9 @@ int main(int argc, char * const argv[])
         {
             case gPgmOptHelp:
                 optHelp = YES;
+                break;
+            case gPgmOptVersion:
+                optVersion = YES;
                 break;
             case gPgmOptAlgorithm:
                 if (strcmp(optarg, gPgmAlgorithmAccurate) == 0)
@@ -1434,6 +1453,11 @@ int main(int argc, char * const argv[])
             break;
         }
 
+        if (optVersion == YES)
+        {
+            break;
+        }
+
     }
 
     if (err > 0)
@@ -1443,6 +1467,14 @@ int main(int argc, char * const argv[])
 
     if (optHelp == YES)
     {
+        return 0;
+    }
+
+    if (optVersion == YES)
+    {
+        fprintf(stderr, "%s %s\n",
+                gPgmName,
+                [gPgmVers cStringUsingEncoding: NSUTF8StringEncoding]);
         return 0;
     }
 

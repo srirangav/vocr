@@ -3,7 +3,9 @@
 vocr \- a simple utility for performing optical character recognition
 on images and PDFs
 .SH SYNOPSIS
-vocr [\-v] [\-f] [\-p] [\-a [accurate|fast]] [\-i [no|tab]] [\-l [lang]] [-L] [files]
+vocr [\-v] [\-f] [\-p] [\-a [accurate|fast]] [\-i [no|tab]] [\-l [lang]] [files]
+
+vocr [\-L] [\-a [accurate|fast]]
 .SH DESCRIPTION
 vocr is a simple utility for performing optical character recognition
 (OCR) on images and PDFs. It prints any text found in the specified
@@ -13,9 +15,9 @@ Vision framework (v for [V]ision).
 .TP
 .B \-a [accurate|fast]
 Specifies the ocr algorithm to use, either "accurate" or "fast". By
-default vocr uses the "accurate" algorithm, but the "fast" algorithm
-may be useful when recognizing text in non\-English languages, such
-as German.
+default vocr uses the "accurate" algorithm.  The "fast" algorithm is
+only available for German, English, French, Italian, Portuguese, and
+Spanish.
 .TP
 .B \-i [no|tab]
 If \-i is specified with the "no" option, vocr will not attempt to indent
@@ -33,10 +35,15 @@ a text representation of a given page, vocr will output that text.
 .TP
 .B \-l [lang]
 If \-l is specified, on MacOSX 11.x (BigSur) and newer, vocr will ask the
-Vision framework to recognize the text in the specified language.  The
-supported language options are: "de" (German), "en" (English), "fr"
-(French), "it" (Italian), "pt" (Portuguese), "es" (Spanish), "zh"
-(Chinese).
+Vision framework to recognize the text in the specified language.
+
+The supported language options for MacOSX 11.x (BigSur) and newer are: "de"
+(German), "en" (English), "fr" (French), "it" (Italian), "pt" (Portuguese),
+"es" (Spanish), and "zh" (Chinese).
+
+For MacOSX 14.x (Sonoma) and newer, the following additional languages
+are supported: "yu" (Cantonese), "kr" (Korean), "jp" (Japanese), "ru"
+(Russian), "ua" (Ukrainian), "th" (Thai), and "vt" (Vietnamese).
 .TP
 .B \-v
 Enables verbose mode \- vocr will print out informational and error
@@ -45,8 +52,8 @@ messages.
 .B \-L
 Lists available languages.
 .SH PLATFORMS
-vorc has been tested on MacOSX 11.x (BigSur),  12.x (Monterey), and
-14.x (Sonoma) on M1 and x86_64.  It should also work on MacOSX 10.15 
-(Catalina) x86_64.
+vorc has been tested on MacOSX 11.x (BigSur), 12.x (Monterey), and
+14.x (Sonoma) on M1 and M2 Macs.  It should also work on MacOSX 10.15
+(Catalina) x86 Macs.
 .SH HISTORY
 vocr was written by Sriranga Veeraraghavan <ranga@calalum.org>.

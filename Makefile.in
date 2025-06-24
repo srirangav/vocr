@@ -10,7 +10,7 @@ PGM_MANDIR = $(DESTDIR)$(PREFIX)/man/man1
 PGM_FILES = $(PGM_SRCS) $(PGM_MAN) Makefile README.txt LICENSE.txt
 
 OBJC = @OBJC@
-CFLAGS=@OBJCFLAGS@
+CFLAGS=@OBJCFLAGS@ -D@PACKAGE_NAME@_version=\@\"@PACKAGE_VERSION@\"
 LIBS=@LIBS@
 INSTALL=@INSTALL@
 
@@ -23,7 +23,7 @@ lslangs:
 	$(OBJC) $(CFLAGS) -o lslangs listSupportedLangs.m $(LIBS)
 
 man2txt:
-	nroff -Tascii -man $(PGM_MAN) | col -b -x > $(PGM_MAN).txt
+	nroff -Tutf8 -man $(PGM_MAN) | col -b -x > $(PGM_MAN).txt
 
 .PHONY: distclean
 distclean: clean
