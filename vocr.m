@@ -14,8 +14,10 @@
     v. 0.3.1 (04/24/2022) - move printSupportedLangs to separate file
     v. 0.4.0 (07/10/2022) - switch to PDFKit
     v. 0.4.1 (10/28/2022) - updates for Monterey (MacOSX 12.x)
+    v. 0.4.2 (06/17/2025) - updates for Sonoma (MacOSX 14.x),
+                            integrate lslangs
 
-    Copyright (c) 2022 Sriranga R. Veeraraghavan <ranga@calalum.org>
+    Copyright (c) 2022, 2025 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
     Permission is hereby granted, free of charge, to any person obtaining
     a copy of this software and associated documentation files (the
@@ -60,9 +62,9 @@
 
 static NSString   *gIndentStr = @"    ";
 static const char *gPgmName   = "vocr";
+static const char *gStrNone   = "none";
 #ifdef VOCR_IMG2TXT
-static const NSUInteger
-                  gBufSize    = 1024;
+static const NSUInteger gBufSize = 1024;
 #endif /* VOCR_IMG2TXT */
 #ifndef HAVE_UTT
 static NSString   *gUTIPDF    = @"com.adobe.pdf";
@@ -80,6 +82,7 @@ static NSString   *gUTIIMG    = @"public.image";
                     'no'  - disables indenting
                     'tab' - indents with tabs (default is to use 4 spaces)
         -l - specify the [l]anguage to use for recognition
+        -L - list languages available for recognition
         -p - add a page break / [l]ine feed between pages
         -v - be [v]erbose
 */
@@ -93,20 +96,39 @@ enum
     gPgmOptLang      = 'l',
     gPgmOptPageBreak = 'p',
     gPgmOptVerbose   = 'v',
+    gPgmOptListLangs = 'L',
 };
 
-enum
+/* enumeration of supported languages */
+
+typedef enum
 {
     gLangGerman     = 'd', /* de-DE */
     gLangEnglish    = 'e', /* en-US */
     gLangFrench     = 'f', /* fr-FR */
     gLangItalian    = 'i', /* it-IT */
+    gLangJapanese   = 'j', /* ja-JP */
+    gLangKorean     = 'k', /* ko-KR */
     gLangPortuguese = 'p', /* pt-BR */
+    gLangRussian    = 'r', /* ru-RU */
     gLangSpanish    = 's', /* es-ES */
+    gLangThai       = 't', /* th-TH */
+    gLangUkrainian  = 'u', /* uk-UA */
+    gLangVietnamese = 'v', /* vi-VT */
+    gLangCantonese  = 'y', /* yue-Hans and yue-Hant */
     gLangChinese    = 'z', /* zh-Hans and zh-Hant */
-};
+} supportedLangs_t;
 
-static const char *gPgmOpts      = "fhpva:i:l:";
+/* enumeration of supported ocr algorithms */
+
+typedef enum
+{
+    gAlgorithmAccurate,
+    gAlgorithmFast,
+    gAlgorithmAll,
+} supportedAlgorithms_t;
+
+static const char *gPgmOpts      = "fhpvLa:i:l:";
 static const char *gPgmAlgorithmAccurate = "accurate";
 static const char *gPgmAlgorithmFast     = "fast";
 static const char *gPgmIndentNo  = "no";
@@ -120,34 +142,70 @@ static const char *gPgmLangItalian    = "it";
 static const char *gPgmLangPortuguese = "pt";
 static const char *gPgmLangSpanish    = "es";
 static const char *gPgmLangChinese    = "zh";
+static const char *gPgmLangCantonese  = "yu";
+static const char *gPgmLangKorean     = "kr";
+static const char *gPgmLangJapanese   = "jp";
+static const char *gPgmLangRussian    = "ru";
+static const char *gPgmLangUkrainian  = "ua";
+static const char *gPgmLangThai       = "th";
+static const char *gPgmLangVietnamese = "vt";
 
 /* ocr options */
 
 typedef struct
 {
     BOOL addPageBreak;
-    BOOL fast;
     BOOL indent;
     BOOL indentWithTabs;
     BOOL forceOCR;
-    int lang;
+    supportedAlgorithms_t algorithm;
+    supportedLangs_t lang;
 } ocrOpts_t;
 
 /* prototypes */
 
 static void printUsage(void);
-static void printError(const char *format, ...);
-static void printInfo(const char *format, ...);
+
+#ifdef VOCR_IMG2TXT
+
 static BOOL ocrFile(const char *file,
-#ifdef VOCR_IMG2TXT
                     NSMutableString *text,
-#endif /* VOCR_IMG2TXT */
                     ocrOpts_t *opts);
+
 static BOOL ocrImage(CGImageRef cgImage,
-#ifdef VOCR_IMG2TXT
                      NSMutableString *text,
-#endif /* VOCR_IMG2TXT */
                      ocrOpts_t *opts);
+#else
+
+static BOOL ocrFile(const char *file,
+                    ocrOpts_t *opts);
+
+static BOOL ocrImage(CGImageRef cgImage,
+                     ocrOpts_t *opts);
+
+#endif /* VOCR_IMG2TXT */
+
+static void listSupportedLangs(supportedAlgorithms_t algorithm);
+
+/* macros */
+
+/*
+    printError - print an error message
+    printInfo  - print an informational message
+
+    based on: https://stackoverflow.com/a/43707810
+*/
+
+#define printError(...) fprintf(stderr, "Error: %s", \
+                                 [[NSString stringWithFormat: __VA_ARGS__] \
+                                  cStringUsingEncoding: NSUTF8StringEncoding])
+
+#define printInfo(...) if (gQuiet == NO) \
+                       { \
+                          fprintf(stdout, "Info : %s", \
+                                 [[NSString stringWithFormat: __VA_ARGS__] \
+                                  cStringUsingEncoding: NSUTF8StringEncoding]); \
+                        }
 
 /* private functions */
 
@@ -156,7 +214,7 @@ static BOOL ocrImage(CGImageRef cgImage,
 static void printUsage(void)
 {
     fprintf(stderr,
-            "Usage: %s [-%c] [-%c [%s|%s]] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [files]\n",
+            "Usage: %s [-%c] [-%c [%s|%s]] [-%c] [-%c] [-%c [%s|%s]] [-%c [lang]] [-%c] [files]\n",
             gPgmName,
             gPgmOptVerbose,
             gPgmOptAlgorithm,
@@ -167,41 +225,8 @@ static void printUsage(void)
             gPgmOptIndent,
             gPgmIndentNo,
             gPgmIndentTab,
-            gPgmOptLang);
-}
-
-/* printError - print an error message */
-
-static void printError(const char *format, ...)
-{
-    va_list args;
-
-    if (gQuiet == YES)
-    {
-        return;
-    }
-
-    va_start(args, format);
-    fprintf(stderr,"ERROR: ");
-    vfprintf(stderr, format, args);
-    va_end(args);
-}
-
-/* printInfo - print an informational message */
-
-static void printInfo(const char *format, ...)
-{
-    va_list args;
-
-    if (gQuiet == YES)
-    {
-        return;
-    }
-
-    va_start(args, format);
-    fprintf(stderr,"INFO:  ");
-    vfprintf(stderr, format, args);
-    va_end(args);
+            gPgmOptLang,
+            gPgmOptListLangs);
 }
 
 /* ocrImage - try to ocr the specified image */
@@ -233,7 +258,7 @@ static BOOL ocrImage(CGImageRef cgImage,
 #ifdef VOCR_IMG2TXT
     if (text == nil)
     {
-        printError("Text buffer is NULL!\n");
+        printError(@"Text buffer is NULL!\n");
         return NO;
     }
 #endif /* VOCR_IMG2TXT */
@@ -243,7 +268,10 @@ static BOOL ocrImage(CGImageRef cgImage,
 
         /* is fast mode requested? */
 
-        fast = opts->fast;
+        if (opts->algorithm == gAlgorithmFast)
+        {
+            fast = YES;
+        }
 
         /* desired indent */
 
@@ -263,23 +291,95 @@ static BOOL ocrImage(CGImageRef cgImage,
             switch(opts->lang)
             {
                 case gLangGerman:
+
                     langs = [NSArray arrayWithObjects: @"de-DE", nil];
                     break;
+
                 case gLangEnglish:
+                
+                    langs = nil;
                     break;
+
                 case gLangFrench:
+
                     langs = [NSArray arrayWithObjects: @"fr-FR", nil];
                     break;
+
                 case gLangItalian:
+
                     langs = [NSArray arrayWithObjects: @"it-IT", nil];
                     break;
+
                 case gLangPortuguese:
+
                     langs = [NSArray arrayWithObjects: @"pt-BR", nil];
                     break;
+
                 case gLangSpanish:
+
                     langs = [NSArray arrayWithObjects: @"es-ES", nil];
                     break;
+
+                /* 
+                    fast mode not supported for Korean, Japanese, Russian,
+                    Ukrainian, Thai, Vietnamese, Cantonese, or Chinese 
+                */
+
+                case gLangKorean:
+
+                    langs = [NSArray arrayWithObjects: @"ko-KR", nil];
+                    fast = NO;
+                    break;
+
+                case gLangJapanese:
+
+                    langs = [NSArray arrayWithObjects: @"ja-JP", nil];
+                    fast = NO;
+                    break;
+
+                case gLangRussian:
+
+                    langs = [NSArray arrayWithObjects: @"ru-RU", nil];
+                    fast = NO;
+                    break;
+
+                case gLangUkrainian:
+
+                    langs = [NSArray arrayWithObjects: @"uk-UA", nil];
+                    fast = NO;
+                    break;
+
+                case gLangThai:
+
+                    langs = [NSArray arrayWithObjects: @"th-TH", nil];
+                    fast = NO;
+                    break;
+
+                case gLangVietnamese:
+
+                    langs = [NSArray arrayWithObjects: @"vi-VT", nil];
+                    fast = NO;
+                    break;
+
+                case gLangCantonese:
+
+                    langs = [NSArray arrayWithObjects: @"yue-Hans",
+                                                       @"yue-Hant",
+                                                       @"en-US",
+                                                       nil];
+
+                    /*
+                        disable language correction and fast mode
+                        for Chinese/Cantonese, see:
+                        https://developer.apple.com/documentation/vision/recognizing_text_in_images
+                    */
+
+                    langCorrect = NO;
+                    fast = NO;
+                    break;
+
                 case gLangChinese:
+                
                     langs = [NSArray arrayWithObjects: @"zh-Hans",
                                                        @"zh-Hant",
                                                        @"en-US",
@@ -287,16 +387,19 @@ static BOOL ocrImage(CGImageRef cgImage,
 
                     /*
                         disable language correction, fast mode
-                        for Chinese, see:
+                        for Chinese/Cantonese, see:
                         https://developer.apple.com/documentation/vision/recognizing_text_in_images
                     */
 
                     langCorrect = NO;
                     fast = NO;
                     break;
+                    
                 default:
+
                     langs = nil;
                     break;
+
             }
         }
     }
@@ -305,7 +408,7 @@ static BOOL ocrImage(CGImageRef cgImage,
     ocrText = [[NSMutableString alloc] initWithCapacity: gBufSize];
     if (ocrText == nil)
     {
-        printError("Cannot allocate mutable string.\n");
+        printError(@"Cannot allocate mutable string.\n");
         return NO;
     }
 #endif /* VOCR_IMG2TXT */
@@ -313,7 +416,7 @@ static BOOL ocrImage(CGImageRef cgImage,
     textPieces = [NSMutableArray array];
     if (textPieces == nil)
     {
-        printError("Cannot allocate mutable array.\n");
+        printError(@"Cannot allocate mutable array.\n");
         return NO;
     }
 
@@ -332,14 +435,14 @@ static BOOL ocrImage(CGImageRef cgImage,
                                                options: @{}];
     if (requestHandler == nil)
     {
-        printError("Could not create OCR request handler.\n");
+        printError(@"Could not create OCR request handler.\n");
         return NO;
     }
 
     request = [[VNRecognizeTextRequest alloc] init];
     if (request == nil)
     {
-        printError("Could not create OCR request for.\n");
+        printError(@"Could not create OCR request for.\n");
         return NO;
     }
 
@@ -363,15 +466,24 @@ static BOOL ocrImage(CGImageRef cgImage,
     [request setUsesLanguageCorrection: langCorrect];
 
     /*
-        use the version 2 algorithm on MacOSX 10.16+ (BigSur or newer),
-        which support multiple languages, and, if an alternate language
-        is requested set that as well:
+        use the version 3 algorithm on MacOSX 13+ (Ventura and newer)
+        and the version 2 algorithm on MacOSX 11 and 12 (BigSur and
+        Monterey), which support multiple languages.  If an alternate
+        language is requested set that as well.  See:
 
         https://developer.apple.com/documentation/vision/vnrecognizetextrequestrevision2?language=objc
         https://stackoverflow.com/questions/63813709
     */
 
-    if (@available(macos 10.16, *))
+    if (@available(macos 13, *))
+    {
+        [request setRevision: VNRecognizeTextRequestRevision3];
+        if (langs != nil)
+        {
+            [request setRecognitionLanguages: langs];
+        }
+    }
+    else if (@available(macos 11, *))
     {
         [request setRevision: VNRecognizeTextRequestRevision2];
         if (langs != nil)
@@ -387,21 +499,21 @@ static BOOL ocrImage(CGImageRef cgImage,
     if ([requestHandler performRequests: @[request]
                                   error: NULL] == NO)
     {
-        printError("OCR failed.\n");
+        printError(@"OCR failed.\n");
         return NO;
     }
 
     results = [request results];
     if (results == nil)
     {
-        printInfo("No text found.\n");
+        printInfo(@"No text found.\n");
         return NO;
     }
 
     numResults = [results count];
     if (numResults == 0)
     {
-        printInfo("No text found.\n");
+        printInfo(@"No text found.\n");
         return NO;
     }
 
@@ -599,14 +711,14 @@ static BOOL ocrFile(const char *file,
 
     if (file == NULL || file[0] == '\0')
     {
-        printError("Filename is NULL!\n");
+        printError(@"Filename is NULL!\n");
         return NO;
     }
 
 #ifdef VOCR_IMG2TXT
     if (text == nil)
     {
-        printError("Text buffer is NULL!\n");
+        printError(@"Text buffer is NULL!\n");
         return NO;
     }
 #endif /* VOCR_IMG2TXT */
@@ -614,14 +726,14 @@ static BOOL ocrFile(const char *file,
     fm = [NSFileManager defaultManager];
     if (fm == nil)
     {
-        printError("Cannot get NSFileManager!\n");
+        printError(@"Cannot get NSFileManager!\n");
         return NO;
     }
 
     workspace = [NSWorkspace sharedWorkspace];
     if (workspace == nil)
     {
-        printError("Cannot get NSWorkspace!\n");
+        printError(@"Cannot get NSWorkspace!\n");
         return NO;
     }
 
@@ -629,14 +741,14 @@ static BOOL ocrFile(const char *file,
                                            length: strlen(file)];
     if (path == nil)
     {
-        printError("Cannot get full path for '%s'.\n", file);
+        printError(@"Cannot get full path for '%s'.\n", file);
         return NO;
     }
 
     fURL = [NSURL fileURLWithPath: path];
     if (fURL == nil)
     {
-        printError("Cannot get create URL for '%s'.\n", file);
+        printError(@"Cannot get create URL for '%s'.\n", file);
         return NO;
     }
 
@@ -650,7 +762,7 @@ static BOOL ocrFile(const char *file,
                          forKey: NSURLTypeIdentifierKey
                           error: &error])
     {
-        printError("Cannot determine file type for '%s'.\n", file);
+        printError(@"Cannot determine file type for '%s'.\n", file);
         return NO;
     }
 
@@ -667,7 +779,7 @@ static BOOL ocrFile(const char *file,
         pdfText = [[NSMutableString alloc] initWithCapacity: gBufSize];
         if (pdfText == nil)
         {
-            printError("Cannot allocate buffer for PDF text.\n");
+            printError(@"Cannot allocate buffer for PDF text.\n");
             return NO;
         }
 #endif /* VOCR_IMG2TXT */
@@ -683,7 +795,7 @@ static BOOL ocrFile(const char *file,
         pdfDoc = [[PDFDocument alloc] initWithURL: fURL];
         if (pdfDoc == nil)
         {
-            printError("Not a valid PDF: '%s'.\n", file);
+            printError(@"Not a valid PDF: '%s'.\n", file);
             return NO;
         }
 
@@ -692,7 +804,7 @@ static BOOL ocrFile(const char *file,
         pdfPages = [pdfDoc pageCount];
         if (pdfPages < 1)
         {
-            printError("PDF has no pages: '%s'.\n", file);
+            printError(@"PDF has no pages: '%s'.\n", file);
             return NO;
         }
 
@@ -704,7 +816,7 @@ static BOOL ocrFile(const char *file,
             pdfPage = [pdfDoc pageAtIndex: i];
             if (pdfPage == NULL)
             {
-                printError("Could not get p.%ld of '%s'.\n",
+                printError(@"Could not get p.%ld of '%s'.\n",
                            i+1, file);
                 continue;
             }
@@ -728,14 +840,14 @@ static BOOL ocrFile(const char *file,
             pdfData = [pdfPage dataRepresentation];
             if (pdfData == NULL)
             {
-                printError("Could not get contents of p.%ld of '%s'.\n",
+                printError(@"Could not get contents of p.%ld of '%s'.\n",
                            i+1, file);
             }
 
             pdfImageRep = [NSPDFImageRep imageRepWithData: pdfData];
             if (pdfData == nil)
             {
-                printError("Cannot convert PDF to image: '%s'.\n",
+                printError(@"Cannot convert PDF to image: '%s'.\n",
                            file);
                 return NO;
             }
@@ -762,7 +874,7 @@ static BOOL ocrFile(const char *file,
                         }];
             if (image == nil)
             {
-                printError("Could not make an image for p.%ld of '%s'.\n",
+                printError(@"Could not make an image for p.%ld of '%s'.\n",
                            i, file);
                 continue;
             }
@@ -789,7 +901,7 @@ static BOOL ocrFile(const char *file,
                 continue;
             }
 
-            printInfo("OCR'ed p. %ld of '%s'.\n", i+1, file);
+            printInfo(@"OCR'ed p. %ld of '%s'.\n", i+1, file);
 
 #ifdef VOCR_IMG2TXT
             [text appendFormat: @"%@\n", pdfText];
@@ -820,7 +932,7 @@ static BOOL ocrFile(const char *file,
         image = [[NSImage alloc] initWithContentsOfURL: fURL];
         if (image == nil)
         {
-            printError("Not an valid image: '%s'.\n", file);
+            printError(@"Not an valid image: '%s'.\n", file);
             return NO;
         }
 
@@ -846,9 +958,249 @@ static BOOL ocrFile(const char *file,
 
     /* unsupported file type */
 
-    printError("'%s' not a supported image or a PDF.\n", file);
+    printError(@"'%s' not a supported image or a PDF.\n", file);
 
     return NO;
+}
+
+/*
+    listSupportedLangs - list the languages supported by
+                         VNRecognizeTextRequest
+
+    see: https://developer.apple.com/documentation/vision/vnrecognizetextrequest/3152642-recognitionlanguages?language=objc
+*/
+
+static void listSupportedLangs(supportedAlgorithms_t algorithm)
+{
+    NSArray<NSString *> *langs;
+    NSUInteger i = 0, numLangs = 0;
+#if (MAC_OS_X_VERSION_MIN_REQUIRED >= 120000)
+    VNRecognizeTextRequest *vnr = nil;
+#endif
+
+    if (algorithm == gAlgorithmAll ||
+        algorithm == gAlgorithmFast)
+    {
+
+        /* fast, v1 */
+
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
+        langs = [VNRecognizeTextRequest
+            supportedRecognitionLanguagesForTextRecognitionLevel:
+                VNRequestTextRecognitionLevelFast
+                                                        revision:
+                VNRecognizeTextRequestRevision1
+                                                           error: nil];
+#else
+        vnr = [[VNRecognizeTextRequest alloc] init];
+        [vnr setRecognitionLevel: VNRequestTextRecognitionLevelFast];
+        [vnr setRevision: VNRecognizeTextRequestRevision1];
+        langs = [vnr
+                 supportedRecognitionLanguagesAndReturnError: nil];
+#endif
+
+        if (langs != nil)
+        {
+            fprintf(stdout, "%-8s v1: ", gPgmAlgorithmFast);
+            numLangs = [langs count];
+            if (numLangs > 0)
+            {
+                for (i = 0; i < numLangs; i++)
+                {
+                    fprintf(stdout,
+                            "'%s' ",
+                            [[langs objectAtIndex: i]
+                                cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
+            }
+            else
+            {
+                fprintf(stdout, "%s", gStrNone);
+            }
+            fprintf(stdout, "\n");
+        }
+
+        /* fast, v2 */
+
+        if (@available(macos 11, *))
+        {
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
+            langs = [VNRecognizeTextRequest
+                supportedRecognitionLanguagesForTextRecognitionLevel:
+                    VNRequestTextRecognitionLevelFast
+                                                            revision:
+                    VNRecognizeTextRequestRevision2
+                                                               error: nil];
+#else
+            [vnr setRevision: VNRecognizeTextRequestRevision2];
+            langs = [vnr
+                     supportedRecognitionLanguagesAndReturnError: nil];
+#endif
+            if (langs != nil)
+            {
+            fprintf(stdout, "%-8s v2: ", gPgmAlgorithmFast);
+                numLangs = [langs count];
+                if (numLangs > 0)
+                {
+                    for (i = 0; i < numLangs; i++)
+                    {
+                        fprintf(stdout,
+                                "'%s' ",
+                                [[langs objectAtIndex: i]
+                                    cStringUsingEncoding: NSUTF8StringEncoding]);
+                    }
+                }
+                else
+                {
+                    fprintf(stdout, "%s", gStrNone);
+                }
+                fprintf(stdout, "\n");
+            }
+        }
+
+        /* fast, v3 */
+        
+        if (@available(macos 13, *))
+        {
+            [vnr setRevision: VNRecognizeTextRequestRevision3];
+            langs = [vnr
+                     supportedRecognitionLanguagesAndReturnError: nil];
+            if (langs != nil)
+            {
+            fprintf(stdout, "%-8s v3: ", gPgmAlgorithmFast);
+                numLangs = [langs count];
+                if (numLangs > 0)
+                {
+                    for (i = 0; i < numLangs; i++)
+                    {
+                        fprintf(stdout,
+                                "'%s' ",
+                                [[langs objectAtIndex: i]
+                                    cStringUsingEncoding: NSUTF8StringEncoding]);
+                    }
+                }
+                else
+                {
+                    fprintf(stdout, "%s", gStrNone);
+                }
+                fprintf(stdout, "\n");
+            }
+        }
+
+    }
+
+    if (algorithm == gAlgorithmAll ||
+        algorithm == gAlgorithmAccurate)
+    {
+        /* accurate, v1 */
+
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
+        langs = [VNRecognizeTextRequest
+            supportedRecognitionLanguagesForTextRecognitionLevel:
+                VNRequestTextRecognitionLevelAccurate
+                                                        revision:
+                VNRecognizeTextRequestRevision1
+                                                           error: nil];
+#else
+        if (vnr == nil)
+        {
+            vnr = [[VNRecognizeTextRequest alloc] init];
+        }
+        [vnr setRecognitionLevel: VNRequestTextRecognitionLevelAccurate];
+        [vnr setRevision: VNRecognizeTextRequestRevision1];
+        langs = [vnr
+                 supportedRecognitionLanguagesAndReturnError: nil];
+#endif
+
+        if (langs != nil)
+        {
+            fprintf(stdout, "%-8s v1: ", gPgmAlgorithmAccurate);
+            numLangs = [langs count];
+            if (numLangs > 0)
+            {
+                for (i = 0; i < numLangs; i++)
+                {
+                    fprintf(stdout,
+                            "'%s' ",
+                            [[langs objectAtIndex: i]
+                                cStringUsingEncoding: NSUTF8StringEncoding]);
+                }
+            }
+            else
+            {
+                fprintf(stdout, "%s", gStrNone);
+            }
+            fprintf(stdout, "\n");
+        }
+
+        /* accurate, v2 */
+
+        if (@available(macos 11, *))
+        {
+#if (MAC_OS_X_VERSION_MIN_REQUIRED < 120000)
+            langs = [VNRecognizeTextRequest
+                supportedRecognitionLanguagesForTextRecognitionLevel:
+                    VNRequestTextRecognitionLevelAccurate
+                                                            revision:
+                    VNRecognizeTextRequestRevision2
+                                                               error: nil];
+#else
+            [vnr setRevision: VNRecognizeTextRequestRevision2];
+            langs = [vnr
+                     supportedRecognitionLanguagesAndReturnError: nil];
+#endif
+            if (langs != nil)
+            {
+                fprintf(stdout, "%-8s v2: ", gPgmAlgorithmAccurate);
+                numLangs = [langs count];
+                if (numLangs > 0)
+                {
+                    for (i = 0; i < numLangs; i++)
+                    {
+                        fprintf(stdout,
+                                "'%s' ",
+                                [[langs objectAtIndex: i]
+                                    cStringUsingEncoding: NSUTF8StringEncoding]);
+                    }
+                }
+                else
+                {
+                    fprintf(stdout, "%s", gStrNone);
+                }
+                fprintf(stdout, "\n");
+            }
+        }
+
+        /* accurate, v3 */
+
+        if (@available(macos 13, *))
+        {
+            [vnr setRevision: VNRecognizeTextRequestRevision3];
+            langs = [vnr
+                     supportedRecognitionLanguagesAndReturnError: nil];
+
+            if (langs != nil)
+            {
+                fprintf(stdout, "%-8s v3: ", gPgmAlgorithmAccurate);
+                numLangs = [langs count];
+                if (numLangs > 0)
+                {
+                    for (i = 0; i < numLangs; i++)
+                    {
+                        fprintf(stdout,
+                                "'%s' ",
+                                [[langs objectAtIndex: i]
+                                    cStringUsingEncoding: NSUTF8StringEncoding]);
+                    }
+                }
+                else
+                {
+                    fprintf(stdout, "%s", gStrNone);
+                }
+                fprintf(stdout, "\n");
+            }
+        }
+    }
 }
 
 /* main */
@@ -856,7 +1208,7 @@ static BOOL ocrFile(const char *file,
 int main(int argc, char * const argv[])
 {
     int i = 0, err = 0, ch = 0;
-    BOOL optHelp = NO;
+    BOOL optHelp = NO, optListLangs = NO;
 #ifdef VOCR_IMG2TXT
     NSMutableString *text = nil;
 #endif /* VOCR_IMG2TXT */
@@ -883,7 +1235,7 @@ int main(int argc, char * const argv[])
     }
     else
     {
-        printError("%s requires MacOSX 10.15 or newer\n", gPgmName);
+        printError(@"%s requires MacOSX 10.15 or newer\n", gPgmName);
         return 1;
     }
 
@@ -893,7 +1245,7 @@ int main(int argc, char * const argv[])
         return 1;
     }
 
-    options.fast = NO;
+    options.algorithm = gAlgorithmAll;
     options.addPageBreak = NO;
     options.indent = YES;
     options.indentWithTabs = NO;
@@ -910,15 +1262,15 @@ int main(int argc, char * const argv[])
             case gPgmOptAlgorithm:
                 if (strcmp(optarg, gPgmAlgorithmAccurate) == 0)
                 {
-                    options.fast = NO;
+                    options.algorithm = gAlgorithmAccurate;
                 }
                 else if (strcmp(optarg, gPgmAlgorithmFast) == 0)
                 {
-                    options.fast = YES;
+                    options.algorithm = gAlgorithmFast;
                 }
                 else
                 {
-                    printError("Unsupported algorithm: '%s'\n", optarg);
+                    printError(@"Unsupported algorithm: '%s'\n", optarg);
                     err++;
                 }
                 break;
@@ -941,12 +1293,79 @@ int main(int argc, char * const argv[])
                 }
                 else
                 {
-                    printError("Unsupported indent type: '%s'\n", optarg);
+                    printError(@"Unsupported indent type: '%s'\n", optarg);
                     err++;
                 }
                 break;
+            case gPgmOptListLangs:
+                optListLangs = YES;
+                break;
             case gPgmOptLang:
-                if (@available(macos 11, *))
+                if (@available(macos 13, *))
+                {
+                    if (strcmp(optarg, gPgmLangGerman) == 0)
+                    {
+                        options.lang = gLangGerman;
+                    }
+                    else if (strcmp(optarg, gPgmLangEnglish) == 0)
+                    {
+                        options.lang = gLangEnglish;
+                    }
+                    else if (strcmp(optarg, gPgmLangFrench) == 0)
+                    {
+                        options.lang = gLangFrench;
+                    }
+                    else if (strcmp(optarg, gPgmLangItalian) == 0)
+                    {
+                        options.lang = gLangItalian;
+                    }
+                    else if (strcmp(optarg, gPgmLangPortuguese) == 0)
+                    {
+                        options.lang = gLangPortuguese;
+                    }
+                    else if (strcmp(optarg, gPgmLangSpanish) == 0)
+                    {
+                        options.lang = gLangSpanish;
+                    }
+                    else if (strcmp(optarg, gPgmLangChinese) == 0)
+                    {
+                        options.lang = gLangChinese;
+                    }
+                    else if (strcmp(optarg, gPgmLangCantonese) == 0)
+                    {
+                        options.lang = gLangCantonese;
+                    }
+                    else if (strcmp(optarg, gPgmLangKorean) == 0)
+                    {
+                        options.lang = gLangKorean;
+                    }
+                    else if (strcmp(optarg, gPgmLangJapanese) == 0)
+                    {
+                        options.lang = gLangJapanese;
+                    }
+                    else if (strcmp(optarg, gPgmLangRussian) == 0)
+                    {
+                        options.lang = gLangRussian;
+                    }
+                    else if (strcmp(optarg, gPgmLangUkrainian) == 0)
+                    {
+                        options.lang = gLangUkrainian;
+                    }
+                    else if (strcmp(optarg, gPgmLangThai) == 0)
+                    {
+                        options.lang = gLangThai;
+                    }
+                    else if (strcmp(optarg, gPgmLangVietnamese) == 0)
+                    {
+                        options.lang = gLangVietnamese;
+                    }
+                    else
+                    {
+                        printError(@"Unsupported language: '%s'\n", optarg);
+                        err++;
+                    }
+                }
+                else if (@available(macos 11, *))
                 {
                     if (strcmp(optarg, gPgmLangGerman) == 0)
                     {
@@ -978,7 +1397,7 @@ int main(int argc, char * const argv[])
                     }
                     else
                     {
-                        printError("Unsupported language: '%s'\n", optarg);
+                        printError(@"Unsupported language: '%s'\n", optarg);
                         err++;
                     }
                 }
@@ -992,7 +1411,7 @@ int main(int argc, char * const argv[])
                     }
                     else
                     {
-                        printError("Unsupported language: '%s'\n", optarg);
+                        printError(@"Unsupported language: '%s'\n", optarg);
                         err++;
                     }
                 }
@@ -1001,16 +1420,20 @@ int main(int argc, char * const argv[])
                 gQuiet = NO;
                 break;
             default:
-                printError("Unknown option: '%c'\n", ch);
+                if (ch != '?')
+                {
+                    printError(@"Unknown option: '%c'\n", ch);
+                }
                 err++;
                 break;
         }
 
-        if (optHelp || err > 0)
+        if (optHelp == YES || err > 0)
         {
             printUsage();
             break;
         }
+
     }
 
     if (err > 0)
@@ -1018,8 +1441,14 @@ int main(int argc, char * const argv[])
         return err;
     }
 
-    if (optHelp)
+    if (optHelp == YES)
     {
+        return 0;
+    }
+
+    if (optListLangs == YES)
+    {
+        listSupportedLangs(options.algorithm);
         return 0;
     }
 
@@ -1028,7 +1457,7 @@ int main(int argc, char * const argv[])
 
     if (argc <= 0)
     {
-        printError("No files specified.\n");
+        printError(@"No files specified.\n");
         printUsage();
         return 1;
     }
@@ -1037,7 +1466,7 @@ int main(int argc, char * const argv[])
     text = [[NSMutableString alloc] initWithCapacity: gBufSize];
     if (text == nil)
     {
-        printError("Cannot allocate buffer for text.\n");
+        printError(@"Cannot allocate buffer for text.\n");
         return 1;
     }
 #endif /* VOCR_IMG2TXT */
@@ -1047,7 +1476,7 @@ int main(int argc, char * const argv[])
         if (argv[i] == NULL || argv[i][0] == '\0')
         {
             err++;
-            printError("Filename is NULL!\n");
+            printError(@"Filename is NULL!\n");
             continue;
         }
 
@@ -1058,7 +1487,7 @@ int main(int argc, char * const argv[])
 #endif /* VOCR_IMG2TXT */
         {
             err++;
-            printError("Could not OCR '%s'.\n", argv[i]);
+            printError(@"Could not OCR '%s'.\n", argv[i]);
             continue;
         }
 
@@ -1073,4 +1502,3 @@ int main(int argc, char * const argv[])
 
     } /* @autoreleasepool */
 }
-

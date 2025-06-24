@@ -25,5 +25,6 @@ autom4te.cache
 *.log
 *.status
 *.zip
+lslangs
 vocr
 vocr.1.txt
