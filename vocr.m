@@ -15,7 +15,8 @@
     v. 0.4.0 (07/10/2022) - switch to PDFKit
     v. 0.4.1 (10/28/2022) - updates for Monterey (MacOSX 12.x)
     v. 0.4.2 (06/17/2025) - updates for Sonoma (MacOSX 14.x),
-                            integrate lslangs
+                            integrate lslangs (-L option), and -V to
+                            print out the version
 
     Copyright (c) 2022, 2025 Sriranga R. Veeraraghavan <ranga@calalum.org>
 
@@ -63,18 +64,21 @@
 static NSString   *gIndentStr = @"    ";
 static const char *gPgmName   = "vocr";
 static const char *gStrNone   = "none";
+
 #ifdef VOCR_IMG2TXT
 static const NSUInteger gBufSize = 1024;
 #endif /* VOCR_IMG2TXT */
+
 #ifndef HAVE_UTT
 static NSString   *gUTIPDF    = @"com.adobe.pdf";
 static NSString   *gUTIIMG    = @"public.image";
-#endif
+#endif /* HAVE_UTT */
+
 #ifdef vocr_version
 static NSString   *gPgmVers   = vocr_version;
 #else
 static NSString   *gPgmVers   = @"0.1.0;
-#endif
+#endif /* vocr_version */
 
 /*
     command line options:
@@ -90,7 +94,7 @@ static NSString   *gPgmVers   = @"0.1.0;
         -L - list languages available for recognition
         -p - add a page break / [l]ine feed between pages
         -v - be [v]erbose
-        -V - print vocr's version
+        -V - print version
 */
 
 enum
@@ -172,6 +176,7 @@ typedef struct
 /* prototypes */
 
 static void printUsage(void);
+static void printVersion(void);
 
 #ifdef VOCR_IMG2TXT
 
@@ -243,6 +248,13 @@ static void printUsage(void)
             gPgmAlgorithmFast);
 }
 
+static void printVersion(void)
+{
+        fprintf(stderr, "%s %s\n",
+                gPgmName,
+                [gPgmVers cStringUsingEncoding: NSUTF8StringEncoding]);
+}
+
 /* ocrImage - try to ocr the specified image */
 
 static BOOL ocrImage(CGImageRef cgImage,
@@ -258,9 +270,6 @@ static BOOL ocrImage(CGImageRef cgImage,
     VNRecognizedTextObservation *rawText = nil;
     NSArray<VNRecognizedText *> *recognizedText;
     NSString *tmp1 = nil, *tmp2 = nil;
-#ifdef VOCR_IMG2TXT
-    NSMutableString *ocrText = nil;
-#endif /* VOCR_IMG2TXT */
     NSMutableArray<VNRecognizedTextObservation *> *textPieces;
     unsigned int indentLevel = 0, k = 0;
     double prevStart = 0.0, prevEnd = 0.0;
@@ -268,6 +277,9 @@ static BOOL ocrImage(CGImageRef cgImage,
     BOOL indent = YES, fast = NO, langCorrect = YES;
     NSString *indentStr = gIndentStr;
     NSArray<NSString *> *langs = nil;
+#ifdef VOCR_IMG2TXT
+    NSMutableString *ocrText = nil;
+#endif /* VOCR_IMG2TXT */
 
 #ifdef VOCR_IMG2TXT
     if (text == nil)
@@ -1472,9 +1484,7 @@ int main(int argc, char * const argv[])
 
     if (optVersion == YES)
     {
-        fprintf(stderr, "%s %s\n",
-                gPgmName,
-                [gPgmVers cStringUsingEncoding: NSUTF8StringEncoding]);
+        printVersion();
         return 0;
     }
 
